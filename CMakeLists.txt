@@ -1,0 +1,55 @@
+cmake_minimum_required(VERSION 3.16 FATAL_ERROR)
+project(mgl LANGUAGES C VERSION 1 DESCRIPTION "A simple yet powerful OpenGL abstractor")
+
+string(COMPARE EQUAL "${CMAKE_CURRENT_SOURCE_DIR}" "${CMAKE_SOURCE_DIR}" MGL_STANDALONE)
+
+option(MGL_INSTALL "Create installation target" OFF)
+option(MGL_BUILD_TEST "Build test program (required GLFW installed)" ${MGL_STANDALONE})
+
+add_library(mgl STATIC mgl.c)
+target_include_directories(mgl PUBLIC include)
+
+if (MSVC)
+	target_compile_options(mgl PRIVATE /W4)
+else()
+	target_compile_options(mgl PRIVATE -Wall -Wextra -Wshadow -pedantic)
+endif()
+
+if (MGL_BUILD_TEST)
+	find_package(glfw3 QUIET)
+
+	if (glfw3_FOUND)
+		message("Building test program")
+		add_executable(mgl_test test.c)
+		target_link_libraries(mgl_test PRIVATE glfw mgl)
+		target_compile_options(mgl_test PRIVATE -Wall -Wextra -Wshadow -pedantic)
+		target_include_directories(mgl_test PRIVATE include)
+		target_compile_definitions(mgl_test PRIVATE GLFW_INCLUDE_NONE)
+		set_target_properties(mgl_test PROPERTIES OUTPUT_NAME "mgl")
+	else()
+		message("GLFW not available for test program")
+	endif()
+endif()
+
+if(MGL_INSTALL)
+	message("Creating installation target")
+	install(TARGETS mgl ARCHIVE DESTINATION lib)
+	install(FILES include/mgl/mgl.h DESTINATION include)
+
+	set(CPACK_PACKAGE_NAME ${PROJECT_NAME})
+	set(CPACK_PACKAGE_VERSION ${PROJECT_VERSION})
+	set(CPACK_PACKAGE_VENDOR "Mahdi Almusaad")
+	set(CPACK_PACKAGE_DESCRIPTION_SUMMARY ${PROJECT_DESCRIPTION})
+	set(CPACK_RESOURCE_FILE_LICENSE ${CMAKE_CURRENT_SOURCE_DIR}/LICENSE)
+	set(CPACK_RESOURCE_FILE_README ${CMAKE_CURRENT_SOURCE_DIR}/README.md)
+	set(CPACK_COMPRESSION_LEVEL 9)
+	set(CPACK_THREADS 0)
+
+	if(WIN32)
+		set(CPACK_GENERATOR "ZIP")
+	else()
+		set(CPACK_GENERATOR "TGZ")
+	endif()
+
+	include(CPack)
+endif()
