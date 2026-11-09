@@ -3231,7 +3231,7 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, GL_RGB, GL_UNSIGNED_BYTE, pixels);
+	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, channels, srctype, pixels);
 	mgl.GenerateMipmap(GL_TEXTURE_2D);
 
 	return (mgl_texture){ texture, format };
