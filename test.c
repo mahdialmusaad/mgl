@@ -118,6 +118,11 @@ int main(int argc, char **argv)
 		 0.1f, -0.1f,  1.0f, 1.0f  // BR
 	};
 
+	const unsigned int inds[] = {
+		0, 1, 2,
+		2, 3, 0
+	};
+
 	struct {
 		float ubo_position[2];
 	} ubo = { { -1.0f, -0.9f } };
@@ -130,10 +135,10 @@ int main(int argc, char **argv)
 	mgl_datastore ds = mglCreateDataStore();
 	mgl_buffer vbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
 	mglBufferData(vbo, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds, vbo, 0, MGL_F2, 0, 0, 0);
+	mglDataStoreAttribute(&ds, vbo, 0, MGL_FLOAT2, 0, 0, 0);
 	mgl_buffer ivbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
 	mglBufferData(ivbo, MGL_USAGE_CONSTANT, instanced, sizeof instanced);
-	mglDataStoreAttribute(&ds, ivbo, 1, MGL_F2, 0, 0, 1);
+	mglDataStoreAttribute(&ds, ivbo, 1, MGL_FLOAT2, 0, 0, 1);
 	mgl_buffer dvbo = mglCreateBuffer(MGL_BUFFER_DRAW_INDIRECT);
 	mglBufferData(dvbo, MGL_USAGE_CONSTANT, indirect, sizeof indirect);
 	mglAddDataStoreBuffer(&ds, dvbo);
@@ -141,25 +146,27 @@ int main(int argc, char **argv)
 	mgl_datastore ds2 = mglCreateDataStore();
 	mgl_buffer vbo2 = mglCreateBuffer(MGL_BUFFER_VERTICES);
 	mglBufferData(vbo2, MGL_USAGE_CONSTANT, verts2, sizeof verts2);
-	mglDataStoreAttribute(&ds2, vbo2, 0, MGL_F2, 4 * sizeof(float), 0 * sizeof(float), 0);
-	mglDataStoreAttribute(&ds2, vbo2, 1, MGL_F2, 4 * sizeof(float), 2 * sizeof(float), 0);
+	mglDataStoreAttribute(&ds2, vbo2, 0, MGL_FLOAT2, 4 * sizeof(float), 0 * sizeof(float), 0);
+	mglDataStoreAttribute(&ds2, vbo2, 1, MGL_FLOAT2, 4 * sizeof(float), 2 * sizeof(float), 0);
 
 	mgl_datastore ds3 = mglCreateDataStore();
 	mgl_buffer vbo3 = mglCreateBuffer(MGL_BUFFER_VERTICES);
 	mglBufferData(vbo3, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds3, vbo3, 0, MGL_F2, 0, 0, 0);
+	mgl_buffer ebo3 = mglCreateBuffer(MGL_BUFFER_INDICES_UINT);
+	mglBufferData(ebo3, MGL_USAGE_CONSTANT, inds, sizeof inds);
+	mglDataStoreAttribute(&ds3, vbo3, 0, MGL_FLOAT2, 0, 0, 0);
 
 	mgl_datastore ds4 = mglCreateDataStore();
 	mgl_buffer vbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
 	mglBufferData(vbo4, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds4, vbo4, 0, MGL_F2, 0, 0, 0);
+	mglDataStoreAttribute(&ds4, vbo4, 0, MGL_FLOAT2, 0, 0, 0);
 	mgl_buffer ivbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
 	mglBufferData(ivbo4, MGL_USAGE_CONSTANT, instanced2, sizeof instanced2);
-	mglDataStoreAttribute(&ds4, ivbo4, 1, MGL_F2, 0, 0, 1);
+	mglDataStoreAttribute(&ds4, ivbo4, 1, MGL_FLOAT2, 0, 0, 1);
 
 	int location = mglLocateUniform(program, "col");
 	int samplerloc = mglLocateUniform(program2, "tex");
-	int wire = 0, cd = 0, fid = 0;
+	int wire = 0, cd = 0, cdf2 = 0, fid = 0;
 	float indcol[3];
 
 	const int texbinding = 0;
@@ -171,7 +178,7 @@ int main(int argc, char **argv)
 		255, 255, 255  // W
 	};
 
-	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_U3);
+	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_RGB);
 	mglBindTexture(tex, texbinding);
 	mglSetUniform(program2, samplerloc, MGL_SAMPLER, 1, &texbinding);
 
@@ -188,24 +195,25 @@ int main(int argc, char **argv)
 		mglClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		mglClear(MGL_CLEAR_COLOR);
 		mglDraw(ds2, program2, MGL_DRAW_STRIPS, 0, 4);
-		mglSetUniform(program, location, MGL_F3, 1, (float[3]){ 1.0f, 1.0f, 1.0f });
+		mglSetUniform(program, location, MGL_FLOAT3, 1, (float[3]){ 1.0f, 1.0f, 1.0f });
 		mglDrawInstanced(ds4, program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3);
 		if (fid++ % 60 == 0) { indcol[0] = (float)rand() / RAND_MAX; indcol[1] = (float)rand() / RAND_MAX; indcol[2] = (float)rand() / RAND_MAX; };
-		mglSetUniform(program, location, MGL_F3, 1, indcol);
+		mglSetUniform(program, location, MGL_FLOAT3, 1, indcol);
 		mglDrawIndirect(ds, program, MGL_DRAW_STRIPS, (fid / 60) % 2, 1);
-		mglDraw(ds3, program3, MGL_DRAW_STRIPS, 0, 4);
+		mglDraw(ds3, program3, MGL_DRAW_STRIPS, 0, 6);
 		ubo.ubo_position[0] = ubo.ubo_position[0] > 0.9f ? ((ubo.ubo_position[1] += 0.1f), -1.0f) : ubo.ubo_position[0] + 0.016f;
 		ubo.ubo_position[1] = ubo.ubo_position[1] > 1.0f ? -0.9f : ubo.ubo_position[1];
 		mglBufferDataPartial(ubo_buffer, &ubo, 0, sizeof ubo);
 		glfwSwapBuffers(window);
-		if (fid == 20) {
+		if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS && !cdf2) {
+			cdf2 = 1;
 			FILE *ppm = fopen("screenshot.ppm", "w");
 			unsigned char *pixels = malloc((wwidth + 1) * wheight * 3);
 			unsigned char *trow = pixels + wwidth * wheight * 3;
 			size_t rowsz = wwidth * 3;
 			if (!ppm || !pixels) goto end;
 			fprintf(ppm, "P6 %d %d 255 ", wwidth, wheight);
-			mglReadFrame(0, 0, wwidth, wheight, pixels, MGL_U3);
+			mglReadFrame(0, 0, wwidth, wheight, pixels, MGL_RGB);
 			for (int y = 0; y < wheight / 2; ++y) {
 				unsigned char *top = pixels + y * rowsz;
 				unsigned char *bottom = pixels + (wheight - y - 1) * rowsz;
@@ -217,7 +225,7 @@ int main(int argc, char **argv)
 		end:
 			if (pixels) free(pixels);
 			if (ppm) fclose(ppm);
-		}
+		} else if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_RELEASE) cdf2 = 0;
 		if (fid > 2 && fid % 60 == 1) printf("FPS: %1f\n", 1.0 / (glfwGetTime() - start));
 	}
 
@@ -233,6 +241,7 @@ int main(int argc, char **argv)
 
 	mglDestroyBuffer(ubo_buffer);
 	mglDestroyBuffer(vbo3);
+	mglDestroyBuffer(ebo3);
 	mglDestroyDataStore(ds3);
 	mglDestroyProgram(program3);
 

@@ -2090,7 +2090,7 @@ static struct {
 #define MGL_INVALID_OBJ(type) ((type){ MGL_INVALID_ID, 0 })
 
 #define MGL_EMPTY
-#define MGL_INVALID_LOG(id, msg, ...) do { __mgl_log(id, msg, __VA_ARGS__); return MGL_INVALID_ENUM; } while (0)
+#define MGL_INVALID_LOG(msg, ...) do { __mgl_log(MGL_ERROR_INVALID_ENUM, msg, __VA_ARGS__); return MGL_INVALID_ENUM; } while (0)
 #define MGL_LOG_RETURN(ret, id, msg, ...) do { __mgl_log(id, msg, __VA_ARGS__); return ret; } while (0)
 
 static void __mgl_log(int id, const char *fmt, ...)
@@ -2154,14 +2154,14 @@ static GLenum __mgl_string_type(mgl_stringid type)
 		case MGL_STRING_RENDERER: return GL_RENDERER;
 		case MGL_STRING_VERSION: return GL_VERSION;
 		case MGL_STRING_GLSLVERSION: return GL_SHADING_LANGUAGE_VERSION;
-		default: MGL_INVALID_LOG(-1, "Invalid string type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid string type %d\n", type);
 	}
 }
 static GLenum __mgl_value_type(mgl_valueid type)
 {
 	switch (type) {
 
-		default: MGL_INVALID_LOG(-1, "Invalid value type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid value type %d\n", type);
 	}
 }
 
@@ -2171,7 +2171,7 @@ static GLbitfield __mgl_clear_type(unsigned int bits)
 	if (bits & MGL_CLEAR_DEPTH) { underlying |= GL_DEPTH_BUFFER_BIT; bits -= MGL_CLEAR_DEPTH; }
 	if (bits & MGL_CLEAR_STENCIL) { underlying |= GL_STENCIL_BUFFER_BIT; bits -= MGL_CLEAR_STENCIL; }
 	if (bits & MGL_CLEAR_COLOR) { underlying |= GL_COLOR_BUFFER_BIT; bits -= MGL_CLEAR_COLOR; }
-	if (bits) MGL_INVALID_LOG(-1, "Unknown bits in bitfield %d (expected only MGL_CLEAR_DEPTH, MGL_CLEAR_STENCIL and MGL_CLEAR_COLOR bits)\n", bits);
+	if (bits) MGL_INVALID_LOG("Unknown bits in bitfield %d (expected only MGL_CLEAR_DEPTH, MGL_CLEAR_STENCIL and MGL_CLEAR_COLOR bits)\n", bits);
 	else return underlying;
 }
 
@@ -2181,7 +2181,7 @@ static GLenum __mgl_polygon_type(mgl_state type)
 		case MGL_POLYGON_POINTS: return GL_POINT;
 		case MGL_POLYGON_LINES: return GL_LINE;
 		case MGL_POLYGON_FILL: return GL_FILL;
-		default: MGL_INVALID_LOG(-1, "Invalid polygon type %d (expected MGL_POLYGON_FILL, MGL_POLYGON_LINES or MGL_POLYGON_POINTS)\n", type);
+		default: MGL_INVALID_LOG("Invalid polygon type %d (expected MGL_POLYGON_FILL, MGL_POLYGON_LINES or MGL_POLYGON_POINTS)\n", type);
 	}
 }
 
@@ -2196,9 +2196,10 @@ static GLenum __mgl_depth_type(mgl_state type)
 		case MGL_DEPTH_NEQUAL: return GL_NOTEQUAL;
 		case MGL_DEPTH_GEQUAL: return GL_GEQUAL;
 		case MGL_DEPTH_ALWAYS: return GL_ALWAYS;
-		default: MGL_INVALID_LOG(-1, "Invalid depth type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid depth type %d\n", type);
 	}
 }
+
 static GLenum __mgl_blend_type(mgl_state type)
 {
 	switch (type) {
@@ -2217,9 +2218,10 @@ static GLenum __mgl_blend_type(mgl_state type)
 		case MGL_BLEND_CSTA: return GL_CONSTANT_ALPHA;
 		case MGL_BLEND_1MCSTA: return GL_ONE_MINUS_CONSTANT_ALPHA;
 		case MGL_BLEND_SAT: return GL_SRC_ALPHA_SATURATE;
-		default: MGL_INVALID_LOG(-1, "Invalid blend type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid blend type %d\n", type);
 	}
 }
+
 static GLenum __mgl_cull_type(mgl_state type)
 {
 	switch (type) {
@@ -2231,9 +2233,10 @@ static GLenum __mgl_cull_type(mgl_state type)
 		case MGL_CULL_FRONT_CW: return GL_FRONT;
 		case MGL_CULL_FRONTBACK_CCW: FALLTHROUGH
 		case MGL_CULL_FRONTBACK_CW: return GL_FRONT_AND_BACK;
-		default: MGL_INVALID_LOG(-1, "Invalid cull/winding type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid cull/winding type %d\n", type);
 	}
 }
+
 static GLenum __mgl_winding_type(mgl_state type)
 {
 	switch (type) {
@@ -2245,7 +2248,7 @@ static GLenum __mgl_winding_type(mgl_state type)
 		case MGL_CULL_BACK_CW: FALLTHROUGH
 		case MGL_CULL_FRONT_CW: FALLTHROUGH
 		case MGL_CULL_FRONTBACK_CW: return GL_CW;
-		default: MGL_INVALID_LOG(-1, "Invalid cull/winding type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid cull/winding type %d\n", type);
 	}
 }
 
@@ -2253,123 +2256,241 @@ static GLenum __mgl_buffer_type(mgl_buffertype type)
 {
 	switch (type) {
 		case MGL_BUFFER_VERTICES: return GL_ARRAY_BUFFER;
-		case MGL_BUFFER_INDICES: return GL_ELEMENT_ARRAY_BUFFER;
+		case MGL_BUFFER_INDICES_UBYTE: FALLTHROUGH
+		case MGL_BUFFER_INDICES_USHORT: FALLTHROUGH
+		case MGL_BUFFER_INDICES_UINT: return GL_ELEMENT_ARRAY_BUFFER;
 		case MGL_BUFFER_UNIFORM: return GL_UNIFORM_BUFFER;
 		case MGL_BUFFER_DRAW_INDIRECT: return GL_DRAW_INDIRECT_BUFFER;
 		case MGL_BUFFER_SHADER_STORAGE: return GL_SHADER_STORAGE_BUFFER;
-		default: MGL_INVALID_LOG(-1, "Invalid buffer type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid buffer type %d\n", type);
 	}
 }
+
+static unsigned int __mgl_buffer_meta(mgl_buffertype type)
+{
+	switch (type) {
+		case MGL_BUFFER_INDICES_UBYTE: return 1;
+		case MGL_BUFFER_INDICES_USHORT: return 2;
+		case MGL_BUFFER_INDICES_UINT: return 3;
+		default: return 0;
+	}
+}
+static int __mgl_buffer_meta_type(mgl_buffertype type)
+{
+	switch (type) {
+		case 1: return GL_UNSIGNED_BYTE;
+		case 2: return GL_UNSIGNED_SHORT;
+		case 3: return GL_UNSIGNED_INT;
+		default: MGL_INVALID_LOG("Invalid buffer meta type %d\n", type);
+	}
+}
+
 static GLenum __mgl_access_type(mgl_access type)
 {
 	switch (type) {
 		case MGL_ACCESS_READ: return GL_READ_ONLY;
 		case MGL_ACCESS_WRITE: return GL_WRITE_ONLY;
 		case MGL_ACCESS_READWRITE: return GL_READ_WRITE;
-		default: MGL_INVALID_LOG(-1, "Invalid access type %d (expected MGL_ACCESS_READ, MGL_ACCESS_WRITE or MGL_ACCESS_READWRITE)\n", type);
+		default: MGL_INVALID_LOG("Invalid access type %d (expected MGL_ACCESS_READ, MGL_ACCESS_WRITE or MGL_ACCESS_READWRITE)\n", type);
 	}
 }
 
-static GLenum __mgl_channel_type(mgl_datatype type)
+static GLenum __mgl_color_type(mgl_color type)
 {
 	switch (type) {
-		case MGL_I1: FALLTHROUGH
-		case MGL_U1: FALLTHROUGH
-		case MGL_F1: return GL_RED;
-		case MGL_I2: FALLTHROUGH
-		case MGL_U2: FALLTHROUGH
-		case MGL_F2: return GL_RG;
-		case MGL_I3: FALLTHROUGH
-		case MGL_U3: FALLTHROUGH
-		case MGL_F3: return GL_RGB;
-		case MGL_I4: FALLTHROUGH
-		case MGL_U4: FALLTHROUGH
-		case MGL_F4: return GL_RGBA;
-		default: MGL_INVALID_LOG(-1, "Invalid data type %d\n", type);
+		case MGL_RED: return GL_RED;
+		case MGL_RG: return GL_RG;
+		case MGL_RGB: return GL_RGB;
+		case MGL_BGR: return GL_BGR;
+		case MGL_RGBA: return GL_RGBA;
+		case MGL_BGRA: return GL_BGRA;
+		default: MGL_INVALID_LOG("Invalid color type %d\n", type);
 	}
 }
 
-static GLenum __mgl_data_type(mgl_datatype type, int retbyte)
+static GLenum __mgl_data_type(mgl_datatype type)
 {
 	switch (type) {
-		case MGL_I1: FALLTHROUGH
-		case MGL_I2: FALLTHROUGH
-		case MGL_I3: FALLTHROUGH
-		case MGL_I4: return retbyte ? GL_BYTE : GL_INT;
-		case MGL_U1: FALLTHROUGH
-		case MGL_U2: FALLTHROUGH
-		case MGL_U3: FALLTHROUGH
-		case MGL_U4: return retbyte ? GL_UNSIGNED_BYTE : GL_UNSIGNED_INT;
-		case MGL_F1: FALLTHROUGH
-		case MGL_F2: FALLTHROUGH
-		case MGL_F3: FALLTHROUGH
-		case MGL_F4: FALLTHROUGH
-		case MGL_M22: FALLTHROUGH
-		case MGL_M23: FALLTHROUGH
-		case MGL_M24: FALLTHROUGH
-		case MGL_M32: FALLTHROUGH
-		case MGL_M33: FALLTHROUGH
-		case MGL_M34: FALLTHROUGH
-		case MGL_M42: FALLTHROUGH
-		case MGL_M43: FALLTHROUGH
-		case MGL_M44: return GL_FLOAT;
-		default: MGL_INVALID_LOG(-1, "Invalid data type %d\n", type);
+		case MGL_BYTE: FALLTHROUGH
+		case MGL_BYTE2: FALLTHROUGH
+		case MGL_BYTE3: FALLTHROUGH
+		case MGL_BYTE4: return GL_BYTE;
+		case MGL_UBYTE: FALLTHROUGH
+		case MGL_UBYTE2: FALLTHROUGH
+		case MGL_UBYTE3: FALLTHROUGH
+		case MGL_UBYTE4: return GL_UNSIGNED_BYTE;
+		case MGL_SHORT: FALLTHROUGH
+		case MGL_SHORT2: FALLTHROUGH
+		case MGL_SHORT3: FALLTHROUGH
+		case MGL_SHORT4: return GL_SHORT;
+		case MGL_USHORT: FALLTHROUGH
+		case MGL_USHORT2: FALLTHROUGH
+		case MGL_USHORT3: FALLTHROUGH
+		case MGL_USHORT4: return GL_UNSIGNED_SHORT;
+		case MGL_INT: FALLTHROUGH
+		case MGL_INT2: FALLTHROUGH
+		case MGL_INT3: FALLTHROUGH
+		case MGL_INT4: return GL_INT;
+		case MGL_UINT: FALLTHROUGH
+		case MGL_UINT2: FALLTHROUGH
+		case MGL_UINT3: FALLTHROUGH
+		case MGL_UINT4: return GL_UNSIGNED_INT;
+		case MGL_FLOAT: FALLTHROUGH
+		case MGL_FLOAT2: FALLTHROUGH
+		case MGL_FLOAT3: FALLTHROUGH
+		case MGL_FLOAT4: FALLTHROUGH
+		case MGL_MAT2X2: FALLTHROUGH
+		case MGL_MAT2X3: FALLTHROUGH
+		case MGL_MAT2X4: FALLTHROUGH
+		case MGL_MAT3X2: FALLTHROUGH
+		case MGL_MAT3X3: FALLTHROUGH
+		case MGL_MAT3X4: FALLTHROUGH
+		case MGL_MAT4X2: FALLTHROUGH
+		case MGL_MAT4X3: FALLTHROUGH
+		case MGL_MAT4X4: return GL_FLOAT;
+		case MGL_DOUBLE: FALLTHROUGH
+		case MGL_DOUBLE2: FALLTHROUGH
+		case MGL_DOUBLE3: FALLTHROUGH
+		case MGL_DOUBLE4: FALLTHROUGH
+		case MGL_DMAT2X2: FALLTHROUGH
+		case MGL_DMAT2X3: FALLTHROUGH
+		case MGL_DMAT2X4: FALLTHROUGH
+		case MGL_DMAT3X2: FALLTHROUGH
+		case MGL_DMAT3X3: FALLTHROUGH
+		case MGL_DMAT3X4: FALLTHROUGH
+		case MGL_DMAT4X2: FALLTHROUGH
+		case MGL_DMAT4X3: FALLTHROUGH
+		case MGL_DMAT4X4: return GL_DOUBLE;
+		default: MGL_INVALID_LOG("Invalid data type (underlying) %d\n", type);
+	}
+}
+
+static size_t __mgl_underlying_type_size(GLenum underlying)
+{
+	switch (underlying) {
+		case GL_BYTE: FALLTHROUGH
+		case GL_UNSIGNED_BYTE: return 1;
+		case GL_SHORT: FALLTHROUGH
+		case GL_UNSIGNED_SHORT: return 2;
+		case GL_INT: FALLTHROUGH
+		case GL_UNSIGNED_INT: FALLTHROUGH
+		case GL_FLOAT: return 4;
+		case GL_DOUBLE: return 8;
+		default: MGL_INVALID_LOG("Invalid underlying type (size) %u\n", underlying);
 	}
 }
 
 static GLint __mgl_component_type(mgl_datatype type)
 {
 	switch (type) {
-		case MGL_I1: FALLTHROUGH
-		case MGL_U1: FALLTHROUGH
-		case MGL_F1: return 1;
-		case MGL_I2: FALLTHROUGH
-		case MGL_U2: FALLTHROUGH
-		case MGL_F2: FALLTHROUGH
-		case MGL_M22: FALLTHROUGH
-		case MGL_M32: FALLTHROUGH
-		case MGL_M42: return 2;
-		case MGL_I3: FALLTHROUGH
-		case MGL_U3: FALLTHROUGH
-		case MGL_F3: FALLTHROUGH
-		case MGL_M23: FALLTHROUGH
-		case MGL_M33: FALLTHROUGH
-		case MGL_M43: return 3;
-		case MGL_I4: FALLTHROUGH;
-		case MGL_U4: FALLTHROUGH
-		case MGL_F4: FALLTHROUGH
-		case MGL_M24: FALLTHROUGH
-		case MGL_M34: FALLTHROUGH
-		case MGL_M44: return 4;
-		default: MGL_INVALID_LOG(-1, "Invalid data type %d\n", type);
+		case MGL_BYTE: FALLTHROUGH
+		case MGL_UBYTE: FALLTHROUGH
+		case MGL_SHORT: FALLTHROUGH
+		case MGL_USHORT: FALLTHROUGH
+		case MGL_INT: FALLTHROUGH
+		case MGL_UINT: FALLTHROUGH
+		case MGL_FLOAT: FALLTHROUGH
+		case MGL_DOUBLE: return 1;
+		case MGL_BYTE2: FALLTHROUGH
+		case MGL_UBYTE2: FALLTHROUGH
+		case MGL_SHORT2: FALLTHROUGH
+		case MGL_USHORT2: FALLTHROUGH
+		case MGL_INT2: FALLTHROUGH
+		case MGL_UINT2: FALLTHROUGH
+		case MGL_FLOAT2: FALLTHROUGH
+		case MGL_DOUBLE2: FALLTHROUGH
+		case MGL_MAT2X2: FALLTHROUGH
+		case MGL_MAT3X2: FALLTHROUGH
+		case MGL_MAT4X2: FALLTHROUGH
+		case MGL_DMAT2X2: FALLTHROUGH
+		case MGL_DMAT3X2: FALLTHROUGH
+		case MGL_DMAT4X2: return 2;
+		case MGL_BYTE3: FALLTHROUGH
+		case MGL_UBYTE3: FALLTHROUGH
+		case MGL_SHORT3: FALLTHROUGH
+		case MGL_USHORT3: FALLTHROUGH
+		case MGL_INT3: FALLTHROUGH
+		case MGL_UINT3: FALLTHROUGH
+		case MGL_FLOAT3: FALLTHROUGH
+		case MGL_DOUBLE3: FALLTHROUGH
+		case MGL_MAT2X3: FALLTHROUGH
+		case MGL_MAT3X3: FALLTHROUGH
+		case MGL_MAT4X3: FALLTHROUGH
+		case MGL_DMAT2X3: FALLTHROUGH
+		case MGL_DMAT3X3: FALLTHROUGH
+		case MGL_DMAT4X3: return 3;
+		case MGL_BYTE4: FALLTHROUGH
+		case MGL_UBYTE4: FALLTHROUGH
+		case MGL_SHORT4: FALLTHROUGH
+		case MGL_USHORT4: FALLTHROUGH
+		case MGL_INT4: FALLTHROUGH
+		case MGL_UINT4: FALLTHROUGH
+		case MGL_FLOAT4: FALLTHROUGH
+		case MGL_DOUBLE4: FALLTHROUGH
+		case MGL_MAT2X4: FALLTHROUGH
+		case MGL_MAT3X4: FALLTHROUGH
+		case MGL_MAT4X4: FALLTHROUGH
+		case MGL_DMAT2X4: FALLTHROUGH
+		case MGL_DMAT3X4: FALLTHROUGH
+		case MGL_DMAT4X4: return 4;
+		default: MGL_INVALID_LOG("Invalid data type (components) %d\n", type);
 	}
 }
 
 static GLint __mgl_attribindices_type(mgl_datatype type)
 {
 	switch (type) {
-		case MGL_I1: FALLTHROUGH
-		case MGL_I2: FALLTHROUGH
-		case MGL_I3: FALLTHROUGH
-		case MGL_I4: FALLTHROUGH
-		case MGL_U1: FALLTHROUGH
-		case MGL_U2: FALLTHROUGH
-		case MGL_U3: FALLTHROUGH
-		case MGL_U4: FALLTHROUGH
-		case MGL_F1: FALLTHROUGH
-		case MGL_F2: FALLTHROUGH
-		case MGL_F3: FALLTHROUGH
-		case MGL_F4: return 1;
-		case MGL_M22: FALLTHROUGH
-		case MGL_M23: FALLTHROUGH
-		case MGL_M24: return 2;
-		case MGL_M32: FALLTHROUGH
-		case MGL_M33: FALLTHROUGH
-		case MGL_M34: return 3;
-		case MGL_M42: FALLTHROUGH
-		case MGL_M43: FALLTHROUGH
-		case MGL_M44: return 4;
-		default: MGL_INVALID_LOG(-1, "Invalid data type %d\n", type);
+		case MGL_BYTE: FALLTHROUGH
+		case MGL_BYTE2: FALLTHROUGH
+		case MGL_BYTE3: FALLTHROUGH
+		case MGL_BYTE4: FALLTHROUGH
+		case MGL_UBYTE: FALLTHROUGH
+		case MGL_UBYTE2: FALLTHROUGH
+		case MGL_UBYTE3: FALLTHROUGH
+		case MGL_UBYTE4: FALLTHROUGH
+		case MGL_SHORT: FALLTHROUGH
+		case MGL_SHORT2: FALLTHROUGH
+		case MGL_SHORT3: FALLTHROUGH
+		case MGL_SHORT4: FALLTHROUGH
+		case MGL_USHORT: FALLTHROUGH
+		case MGL_USHORT2: FALLTHROUGH
+		case MGL_USHORT3: FALLTHROUGH
+		case MGL_USHORT4: FALLTHROUGH
+		case MGL_INT: FALLTHROUGH
+		case MGL_INT2: FALLTHROUGH
+		case MGL_INT3: FALLTHROUGH
+		case MGL_INT4: FALLTHROUGH
+		case MGL_UINT: FALLTHROUGH
+		case MGL_UINT2: FALLTHROUGH
+		case MGL_UINT3: FALLTHROUGH
+		case MGL_UINT4: FALLTHROUGH
+		case MGL_FLOAT: FALLTHROUGH
+		case MGL_FLOAT2: FALLTHROUGH
+		case MGL_FLOAT3: FALLTHROUGH
+		case MGL_FLOAT4: FALLTHROUGH
+		case MGL_DOUBLE: FALLTHROUGH
+		case MGL_DOUBLE2: FALLTHROUGH
+		case MGL_DOUBLE3: FALLTHROUGH
+		case MGL_DOUBLE4: return 1;
+		case MGL_MAT2X2: FALLTHROUGH
+		case MGL_MAT2X3: FALLTHROUGH
+		case MGL_MAT2X4: FALLTHROUGH
+		case MGL_DMAT2X2: FALLTHROUGH
+		case MGL_DMAT2X3: FALLTHROUGH
+		case MGL_DMAT2X4: return 2;
+		case MGL_MAT3X2: FALLTHROUGH
+		case MGL_MAT3X3: FALLTHROUGH
+		case MGL_MAT3X4: FALLTHROUGH
+		case MGL_DMAT3X2: FALLTHROUGH
+		case MGL_DMAT3X3: FALLTHROUGH
+		case MGL_DMAT3X4: return 3;
+		case MGL_MAT4X2: FALLTHROUGH
+		case MGL_MAT4X3: FALLTHROUGH
+		case MGL_MAT4X4: FALLTHROUGH
+		case MGL_DMAT4X2: FALLTHROUGH
+		case MGL_DMAT4X3: FALLTHROUGH
+		case MGL_DMAT4X4: return 4;
+		default: MGL_INVALID_LOG("Invalid data type (indices) %d\n", type);
 	}
 }
 
@@ -2379,7 +2500,7 @@ static GLenum __mgl_shader_type(mgl_shadertype type)
 		case MGL_SHADER_VERTEX: return GL_VERTEX_SHADER;
 		case MGL_SHADER_FRAGMENT: return GL_FRAGMENT_SHADER;
 		case MGL_SHADER_COMPUTE: return GL_COMPUTE_SHADER;
-		default: MGL_INVALID_LOG(-1, "Invalid shader type %d (expected MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT or MGL_SHADER_COMPUTE)\n", type);
+		default: MGL_INVALID_LOG("Invalid shader type %d (expected MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT or MGL_SHADER_COMPUTE)\n", type);
 	}
 }
 
@@ -2390,7 +2511,7 @@ static GLenum __mgl_primitive_type(mgl_drawtype type)
 		case MGL_DRAW_STRIPS: return GL_TRIANGLE_STRIP;
 		case MGL_DRAW_LINES: return GL_LINES;
 		case MGL_DRAW_POINTS: return GL_POINTS;
-		default: MGL_INVALID_LOG(-1, "Invalid primitive type %d\n", type);
+		default: MGL_INVALID_LOG("Invalid primitive type %d\n", type);
 	}
 }
 
@@ -3174,7 +3295,7 @@ MGL_API void mglFeature(mgl_state state)
 			mgl.Enable(GL_CULL_FACE);
 			mgl.CullFace(cullface);
 		} else mgl.Disable(GL_CULL_FACE);
-	} else MGL_LOG_RETURN(MGL_EMPTY, -2, "Invalid feature state %d\n", state);
+	} else MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_FEATURE, "Invalid feature state %d\n", state);
 }
 MGL_API void mglViewport(int x, int y, int width, int height)
 {
@@ -3184,10 +3305,10 @@ MGL_API void mglViewport(int x, int y, int width, int height)
 MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type)
 {
 	GLuint buf;
-	GLenum buftype = __mgl_buffer_type(type);
-	if (buftype == MGL_INVALID_ENUM) return MGL_INVALID_OBJ(mgl_buffer);
+	GLenum buftype = __mgl_buffer_type(type);;
+	if (buftype == MGL_INVALID_ENUM) return (mgl_buffer){ MGL_INVALID_ID, 0, 0 };
 	mgl.GenBuffers(1, &buf);
-	return (mgl_buffer){ buf, buftype };
+	return (mgl_buffer){ buf, buftype, __mgl_buffer_meta(type) };
 }
 MGL_API void mglBufferData(mgl_buffer buffer, mgl_usage usage, const void *data, size_t bytes)
 {
@@ -3215,12 +3336,11 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access)
 	return result;
 }
 
-MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_datatype format)
+MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format)
 {
-	GLenum channels = __mgl_channel_type(format);
-	GLenum srctype = __mgl_data_type(format, 1);
-
-	if (channels == MGL_INVALID_ENUM || srctype == MGL_INVALID_ENUM) return MGL_INVALID_OBJ(mgl_texture);
+	// TODO: non-unsigned byte pixel types
+	GLenum color = __mgl_color_type(format);
+	if (color == MGL_INVALID_ENUM) return MGL_INVALID_OBJ(mgl_texture);
 
 	GLuint texture;
 	mgl.GenTextures(1, &texture);
@@ -3231,7 +3351,7 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, channels, srctype, pixels);
+	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, color, GL_UNSIGNED_BYTE, pixels);
 	mgl.GenerateMipmap(GL_TEXTURE_2D);
 
 	return (mgl_texture){ texture, format };
@@ -3252,13 +3372,14 @@ MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer)
 {
 	if (buffer.type == GL_ARRAY_BUFFER ||
 	    buffer.type == GL_UNIFORM_BUFFER ||
-	    buffer.type == GL_SHADER_STORAGE_BUFFER) MGL_LOG_RETURN(MGL_EMPTY, -3, "You cannot add this type of buffer to the data store (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
+	    buffer.type == GL_SHADER_STORAGE_BUFFER
+	) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "You cannot add this type of buffer to the data store (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
 
 	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER) {
-		if (ds->indexed) MGL_LOG_RETURN(MGL_EMPTY, -3, "The data store already has an index buffer (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
-		else ds->indexed = 1;
+		if (ds->indexed) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "The data store already has an index buffer (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
+		else ds->indexed = buffer.meta;
 	} else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) {
-		if (ds->indirect) MGL_LOG_RETURN(MGL_EMPTY, -3, "The data store already has an indirect buffer (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
+		if (ds->indirect) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "The data store already has an indirect buffer (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
 		else ds->indirect = buffer.id;
 	}
 
@@ -3269,26 +3390,30 @@ MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer)
 }
 MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigned int index, mgl_datatype type, size_t stride, size_t offset, unsigned int divisor)
 {
-	if (buffer.type != GL_ARRAY_BUFFER) MGL_LOG_RETURN(MGL_EMPTY, -3, "You cannot set an attribute with a non-vertex buffer (BID %u, %u)\n", buffer.id, buffer.type);
+	if (buffer.type != GL_ARRAY_BUFFER) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "You cannot set an attribute with a non-vertex buffer (BID %u, %u)\n", buffer.id, buffer.type);
 
 	GLint components = __mgl_component_type(type);
 	int indices = __mgl_attribindices_type(type);
-	GLenum datatype = __mgl_data_type(type, 0);
+	GLenum datatype = __mgl_data_type(type);
+	size_t sizeof_component = __mgl_underlying_type_size(datatype);
 
-	if (components == MGL_INVALID_ENUM || indices == MGL_INVALID_ENUM || datatype == MGL_INVALID_ENUM) return;
+	if (components == MGL_INVALID_ENUM || indices == MGL_INVALID_ENUM || datatype == MGL_INVALID_ENUM || sizeof_component == MGL_INVALID_ENUM) return;
+	if (datatype == GL_DOUBLE && !mgl.VertexArrayAttribLFormat) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Double attribute is not supported (%d, needs 41+)\n", mgl.version);
 
 	mgl.BindVertexArray(ds->id);
 	mgl.BindBuffer(GL_ARRAY_BUFFER, buffer.id);
 
 	for (int i = 0; i < indices; ++i) {
 		unsigned int point = index + i;
+		const void *foffset = (const void *)(offset + components * sizeof_component * i);
+		GLsizei fstride = (GLsizei)stride;
 
 		mgl.EnableVertexAttribArray(point);
 		mgl.VertexAttribDivisor(point, divisor);
 
-		/* TODO: other data types (byte, short) */
-		if (datatype == GL_FLOAT) mgl.VertexAttribPointer(point, components, datatype, GL_FALSE, (GLsizei)stride, (const void *)(offset + components * sizeof(float) * i));
-		else mgl.VertexAttribIPointer(point, components, datatype, (GLsizei)stride, (const void *)(offset + components * sizeof(int) * i));
+		if (datatype == GL_FLOAT) mgl.VertexAttribPointer(point, components, datatype, GL_FALSE, fstride, foffset);
+		else if (datatype != GL_DOUBLE) mgl.VertexAttribIPointer(point, components, datatype, fstride, foffset);
+		else mgl.VertexAttribLPointer(point, components, GL_DOUBLE, fstride, foffset);
 	}
 
 	mgl.BindVertexArray(0);
@@ -3312,7 +3437,7 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 	if (!success) {
 		char buffer[2048];
 		mgl.GetShaderInfoLog(id, sizeof buffer, NULL, buffer);
-		MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_shader), -4, "Shader creation error: %s", buffer);
+		MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_shader), MGL_ERROR_GLSL, "Shader creation error: %s", buffer);
 	}
 
 	return (mgl_shader){ id, stype };
@@ -3330,14 +3455,14 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 	if (!success) {
 		char buffer[2048];
 		mgl.GetProgramInfoLog(program, sizeof buffer, NULL, buffer);
-		MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_program), -4, "Program creation error: %s", buffer);
+		MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_program), MGL_ERROR_GLSL, "Program creation error: %s", buffer);
 	}
 
 	return (mgl_program){ program, 0 };
 }
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name)
 {
-	if (buffer.type != GL_UNIFORM_BUFFER && buffer.type != GL_SHADER_STORAGE_BUFFER) MGL_LOG_RETURN(MGL_EMPTY, -5, "Cannot bind buffer to point %u to program %u which is not of type MGL_BUFFER_UNIFORM or MGL_BUFFER_SHADER_STORAGE (BID %u, %u)\n", binding_point, program.id, buffer.id, buffer.type);
+	if (buffer.type != GL_UNIFORM_BUFFER && buffer.type != GL_SHADER_STORAGE_BUFFER) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_PROGRAM_UNBUFFERABLE, "Cannot bind buffer to point %u to program %u which is not of type MGL_BUFFER_UNIFORM or MGL_BUFFER_SHADER_STORAGE (BID %u, %u)\n", binding_point, program.id, buffer.id, buffer.type);
 
 	GLuint driverloc = mgl.GetUniformBlockIndex(program.id, name);
 	mgl.UniformBlockBinding(program.id, driverloc, binding_point);
@@ -3352,29 +3477,46 @@ MGL_API void mglSetUniform(mgl_program program, int location, mgl_datatype type,
 {
 	mgl.UseProgram(program.id);
 
+	GLenum underlying = __mgl_data_type(type);
+	if (underlying == MGL_INVALID_ENUM) return;
+	if (underlying == GL_DOUBLE && !mgl.Uniform1d) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Double uniform type is unsupported (%d, needs 40+)\n", mgl.version);
+
 	switch (type) {
-		case MGL_I1: mgl.Uniform1iv(location, count, (const GLint *)data); break;
-		case MGL_I2: mgl.Uniform2iv(location, count, (const GLint *)data); break;
-		case MGL_I3: mgl.Uniform3iv(location, count, (const GLint *)data); break;
-		case MGL_I4: mgl.Uniform4iv(location, count, (const GLint *)data); break;
-		case MGL_U1: mgl.Uniform1uiv(location, count, (const GLuint *)data); break;
-		case MGL_U2: mgl.Uniform2uiv(location, count, (const GLuint *)data); break;
-		case MGL_U3: mgl.Uniform3uiv(location, count, (const GLuint *)data); break;
-		case MGL_U4: mgl.Uniform4uiv(location, count, (const GLuint *)data); break;
-		case MGL_F1: mgl.Uniform1fv(location, count, (const GLfloat *)data); break;
-		case MGL_F2: mgl.Uniform2fv(location, count, (const GLfloat *)data); break;
-		case MGL_F3: mgl.Uniform3fv(location, count, (const GLfloat *)data); break;
-		case MGL_F4: mgl.Uniform4fv(location, count, (const GLfloat *)data); break;
-		case MGL_M22: mgl.UniformMatrix2fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M23: mgl.UniformMatrix2x3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M24: mgl.UniformMatrix2x4fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M32: mgl.UniformMatrix3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M33: mgl.UniformMatrix3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M34: mgl.UniformMatrix3x4fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M42: mgl.UniformMatrix4x2fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M43: mgl.UniformMatrix4x3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_M44: mgl.UniformMatrix4fv(location, count, GL_FALSE, (const GLfloat *)data); break;
-		default: MGL_LOG_RETURN(MGL_EMPTY, -6, "Invalid uniform type %d\n", type);
+		case MGL_INT: mgl.Uniform1iv(location, count, (const GLint *)data); break;
+		case MGL_INT2: mgl.Uniform2iv(location, count, (const GLint *)data); break;
+		case MGL_INT3: mgl.Uniform3iv(location, count, (const GLint *)data); break;
+		case MGL_INT4: mgl.Uniform4iv(location, count, (const GLint *)data); break;
+		case MGL_UINT: mgl.Uniform1uiv(location, count, (const GLuint *)data); break;
+		case MGL_UINT2: mgl.Uniform2uiv(location, count, (const GLuint *)data); break;
+		case MGL_UINT3: mgl.Uniform3uiv(location, count, (const GLuint *)data); break;
+		case MGL_UINT4: mgl.Uniform4uiv(location, count, (const GLuint *)data); break;
+		case MGL_FLOAT: mgl.Uniform1fv(location, count, (const GLfloat *)data); break;
+		case MGL_FLOAT2: mgl.Uniform2fv(location, count, (const GLfloat *)data); break;
+		case MGL_FLOAT3: mgl.Uniform3fv(location, count, (const GLfloat *)data); break;
+		case MGL_FLOAT4: mgl.Uniform4fv(location, count, (const GLfloat *)data); break;
+		case MGL_DOUBLE: mgl.Uniform1dv(location, count, (const GLdouble *)data); break;
+		case MGL_DOUBLE2: mgl.Uniform2dv(location, count, (const GLdouble *)data); break;
+		case MGL_DOUBLE3: mgl.Uniform3dv(location, count, (const GLdouble *)data); break;
+		case MGL_DOUBLE4: mgl.Uniform4dv(location, count, (const GLdouble *)data); break;
+		case MGL_MAT2X2: mgl.UniformMatrix2fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT2X3: mgl.UniformMatrix2x3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT2X4: mgl.UniformMatrix2x4fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT3X2: mgl.UniformMatrix3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT3X3: mgl.UniformMatrix3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT3X4: mgl.UniformMatrix3x4fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT4X2: mgl.UniformMatrix4x2fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT4X3: mgl.UniformMatrix4x3fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_MAT4X4: mgl.UniformMatrix4fv(location, count, GL_FALSE, (const GLfloat *)data); break;
+		case MGL_DMAT2X2: mgl.UniformMatrix2dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT2X3: mgl.UniformMatrix2x3dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT2X4: mgl.UniformMatrix2x4dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT3X2: mgl.UniformMatrix3dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT3X3: mgl.UniformMatrix3dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT3X4: mgl.UniformMatrix3x4dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT4X2: mgl.UniformMatrix4x2dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT4X3: mgl.UniformMatrix4x3dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		case MGL_DMAT4X4: mgl.UniformMatrix4dv(location, count, GL_FALSE, (const GLdouble *)data); break;
+		default: MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Unsupported uniform type %d\n", type);
 	}
 
 	mgl.UseProgram(0);
@@ -3388,7 +3530,7 @@ MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primiti
 	mgl.UseProgram(program.id);
 	mgl.BindVertexArray(ds.id);
 
-	if (ds.indexed) mgl.DrawElements(drawtype, count, GL_UNSIGNED_INT, (const void *)(offset * sizeof(GLuint)));
+	if (ds.indexed) mgl.DrawElements(drawtype, count, __mgl_buffer_meta_type(ds.indexed), (const void *)(offset * sizeof(GLuint)));
 	else mgl.DrawArrays(drawtype, offset, count);
 
 	mgl.BindVertexArray(0);
@@ -3396,8 +3538,8 @@ MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primiti
 }
 MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t offset, size_t count, size_t instance_offset, size_t instance_count)
 {
-	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, -7, "No instanced attribute set for instanced drawing (DSID %u)\n", ds.id);
-	if (instance_offset && !mgl.DrawArraysInstancedBaseInstance) MGL_LOG_RETURN(MGL_EMPTY, -255, "Instance offset is not supported (%d)\n", mgl.version);
+	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for instanced drawing (DSID %u)\n", ds.id);
+	if (instance_offset && !mgl.DrawArraysInstancedBaseInstance) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Instance offset is not supported (%d)\n", mgl.version);
 	if (!count || !instance_count) return;
 
 	GLenum drawtype = __mgl_primitive_type(primitive);
@@ -3419,10 +3561,10 @@ MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtyp
 }
 MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t cmd_offset, size_t cmd_count)
 {
-	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, -7, "No instanced attribute set for indirect drawing (DSID %u)\n", ds.id);
-	if (!ds.indirect) MGL_LOG_RETURN(MGL_EMPTY, -7, "No indirect buffer available for indirect drawing (DSID %u)\n", ds.id);
+	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for indirect drawing (DSID %u)\n", ds.id);
+	if (!ds.indirect) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No indirect buffer available for indirect drawing (DSID %u)\n", ds.id);
 	if (!cmd_count) return;
-	if (mgl.version < 42) MGL_LOG_RETURN(MGL_EMPTY, -255, "Indirect drawing requires OpenGL 4.2 (have %d.%d)\n", mgl.major, mgl.minor);
+	if (mgl.version < 42) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Indirect drawing requires OpenGL 4.2 (have %d.%d)\n", mgl.major, mgl.minor);
 
 	GLenum drawtype = __mgl_primitive_type(primitive);
 	if (drawtype == MGL_INVALID_ENUM) return;
@@ -3442,11 +3584,11 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 	mgl.UseProgram(0);
 }
 
-MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_datatype format)
+MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format)
 {
-	GLenum channels = __mgl_channel_type(format);
-	if (channels == MGL_INVALID_ENUM) return;
-	mgl.ReadPixels(x, y, width, height, channels, GL_UNSIGNED_BYTE, pixels);
+	GLenum color = __mgl_color_type(format);
+	if (color == MGL_INVALID_ENUM) return;
+	mgl.ReadPixels(x, y, width, height, color, GL_UNSIGNED_BYTE, pixels);
 }
 
 MGL_API void mglDestroyProgram(mgl_program program) { mgl.DeleteProgram(program.id); }
