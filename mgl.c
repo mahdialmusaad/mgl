@@ -2108,6 +2108,7 @@ static void __mgl_log(int id, const char *fmt, ...)
 	va_end(l);
 }
 
+#ifndef NDEBUG
 static void APICALL __mgl_debug_callback(
 	GLenum source, GLenum type,
 	GLuint id, GLenum severity,
@@ -2145,6 +2146,7 @@ static void APICALL __mgl_debug_callback(
 
 	__mgl_log((int)id, "[SEVERITY=%s][TYPE=%s] %s", sseverity, stype, message);
 }
+#endif
 
 static GLenum __mgl_string_type(mgl_stringid type)
 {
@@ -3240,12 +3242,14 @@ MGL_API void mglDebug(void (*debug_callback)(int, const char *))
 {
 	mgl.user_debug = debug_callback;
 
+#ifndef NDEBUG
 	if (mgl.DebugMessageCallback) {
 		mgl.Enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
 		mgl.Enable(GL_DEBUG_OUTPUT);
 		mgl.DebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
 		mgl.DebugMessageCallback(__mgl_debug_callback, NULL);
 	}
+#endif
 }
 
 MGL_API const char *mglString(mgl_stringid id)
