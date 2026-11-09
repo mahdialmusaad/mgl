@@ -229,24 +229,24 @@ int main(int argc, char **argv)
 		if (fid > 2 && fid % 60 == 1) printf("FPS: %1f\n", 1.0 / (glfwGetTime() - start));
 	}
 
-	mglDestroyBuffer(vbo);
-	mglDestroyBuffer(ivbo);
-	mglDestroyBuffer(dvbo);
+	mglDestroyBuffer(vbo, ds);
+	mglDestroyBuffer(ivbo, ds);
+	mglDestroyBuffer(dvbo, ds);
 	mglDestroyDataStore(ds);
 	mglDestroyProgram(program);
 
-	mglDestroyBuffer(vbo2);
+	mglDestroyBuffer(vbo2, ds2);
 	mglDestroyDataStore(ds2);
 	mglDestroyProgram(program2);
 
-	mglDestroyBuffer(ubo_buffer);
-	mglDestroyBuffer(vbo3);
-	mglDestroyBuffer(ebo3);
+	mglDestroyBuffer(ubo_buffer, ds3);
+	mglDestroyBuffer(vbo3, ds3);
+	mglDestroyBuffer(ebo3, ds3);
 	mglDestroyDataStore(ds3);
 	mglDestroyProgram(program3);
 
-	mglDestroyBuffer(vbo4);
-	mglDestroyBuffer(ivbo4);
+	mglDestroyBuffer(vbo4, ds4);
+	mglDestroyBuffer(ivbo4, ds4);
 	mglDestroyDataStore(ds4);
 
 	mglDestroyTexture(tex);

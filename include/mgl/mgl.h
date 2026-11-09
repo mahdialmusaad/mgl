@@ -137,8 +137,8 @@ typedef enum { MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT, MGL_SHADER_COMPUTE } mgl_
 typedef enum { MGL_CLEAR_DEPTH = 0x1, MGL_CLEAR_STENCIL = 0x2, MGL_CLEAR_COLOR = 0x4 } mgl_clearbits;
 typedef enum { MGL_DRAW_TRIANGLES, MGL_DRAW_STRIPS, MGL_DRAW_LINES, MGL_DRAW_POINTS } mgl_drawtype;
 
-typedef struct { unsigned int id, type : 30, meta : 2; } mgl_buffer;
-typedef struct { unsigned int id, indirect : 29, indexed : 2, instanced : 1; } mgl_datastore;
+typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
+typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } mgl_datastore;
 typedef struct { unsigned int id, meta; } mgl_program;
 typedef struct { unsigned int id, meta; } mgl_shader;
 typedef struct { unsigned int id, meta; } mgl_texture;
@@ -229,13 +229,13 @@ MGL_API void mglBindTexture(mgl_texture texture, unsigned int binding);
 MGL_API mgl_datastore mglCreateDataStore(void);
 /* Add a buffer to the data store.
    Vertex buffers should be added via the mglDataStoreAttribute function, any attempts here will be ignored.
-   This accepts a pointer on purpose and may update the underlying value.*/
+   This accepts a pointer on purpose and may update the underlying value; this must be maintained afterwards. */
 MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer);
 /* Set or add an attribute to the data store, pointing to data of the given vertex buffer.
    If a matrix type is given, it will enable all adjacent indices required to hold each row of the matrix.
    For example, adding an MGL_M34 attribute at index 0 will enable indices 0, 1 and 2 - each of which will store a vec4 (stride/offset set accordingly).
    Stride and offset parameters are interpreted as byte offsets.
-   This accepts a pointer on purpose and may update the underlying value. */
+   This accepts a pointer on purpose and may update the underlying value; this must be maintained afterwards. */
 MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigned int index, mgl_datatype type, size_t stride, size_t offset, unsigned int divisor);
 
 /* Create a shader of a specific type by combining multiple code sources. */
@@ -266,9 +266,9 @@ MGL_API void mglDestroyProgram(mgl_program program);
 MGL_API void mglDestroyShader(mgl_shader shader);
 /* Destroy the texture object. */
 MGL_API void mglDestroyTexture(mgl_texture texture);
-/* Destroy the buffer object. */
-MGL_API void mglDestroyBuffer(mgl_buffer buffer);
 /* Destroy the data store object. */
 MGL_API void mglDestroyDataStore(mgl_datastore ds);
+/* Destroy the buffer object and unbind from the data store. */
+MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds);
 
 #endif

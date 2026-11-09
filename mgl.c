@@ -3380,8 +3380,8 @@ MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer)
 	) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "You cannot add this type of buffer to the data store (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
 
 	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER) {
-		if (ds->indexed) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "The data store already has an index buffer (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
-		else ds->indexed = buffer.meta;
+		if (ds->indexsz) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "The data store already has an index buffer (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
+		else ds->indexsz = buffer.indexsz;
 	} else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) {
 		if (ds->indirect) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "The data store already has an indirect buffer (DSID %u | BID %u, %u)\n", ds->id, buffer.id, buffer.type);
 		else ds->indirect = buffer.id;
@@ -3423,7 +3423,7 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigne
 	mgl.BindVertexArray(0);
 	mgl.BindBuffer(GL_ARRAY_BUFFER, 0);
 
-	ds->instanced |= divisor != 0;
+	if (divisor != 0) ds->instanced = 1u;
 }
 
 MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, int nsources)
@@ -3534,7 +3534,7 @@ MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primiti
 	mgl.UseProgram(program.id);
 	mgl.BindVertexArray(ds.id);
 
-	if (ds.indexed) mgl.DrawElements(drawtype, count, __mgl_buffer_meta_type(ds.indexed), (const void *)(offset * sizeof(GLuint)));
+	if (ds.indexsz) mgl.DrawElements(drawtype, count, __mgl_buffer_meta_type(ds.indexsz), (const void *)(offset * sizeof(GLuint)));
 	else mgl.DrawArrays(drawtype, offset, count);
 
 	mgl.BindVertexArray(0);
@@ -3553,10 +3553,10 @@ MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtyp
 	mgl.BindVertexArray(ds.id);
 
 	if (mgl.DrawArraysInstancedBaseInstance) {
-		if (ds.indexed) mgl.DrawElementsInstancedBaseInstance(drawtype, count, GL_UNSIGNED_INT, (const void *)(offset * sizeof(GLuint)), instance_count, instance_offset);
+		if (ds.indexsz) mgl.DrawElementsInstancedBaseInstance(drawtype, count, __mgl_buffer_meta_type(ds.indexsz), (const void *)(offset * sizeof(GLuint)), instance_count, instance_offset);
 		else mgl.DrawArraysInstancedBaseInstance(drawtype, offset, count, instance_count, instance_offset);
 	} else {
-		if (ds.indexed) mgl.DrawElementsInstanced(drawtype, count, GL_UNSIGNED_INT, (const void *)(offset * sizeof(GLuint)), instance_count);
+		if (ds.indexsz) mgl.DrawElementsInstanced(drawtype, count, __mgl_buffer_meta_type(ds.indexsz), (const void *)(offset * sizeof(GLuint)), instance_count);
 		else mgl.DrawArraysInstanced(drawtype, offset, count, instance_count);
 	}
 
@@ -3579,7 +3579,7 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 	mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, ds.indirect);
 
 	/* TODO: multi indirect equivalent for older contexts */
-	if (ds.indexed) mgl.MultiDrawElementsIndirect(drawtype, GL_UNSIGNED_INT, (const void *)(cmd_offset * sizeof(mgl_indexed_indirect_cmd)), cmd_count, 0);
+	if (ds.indexsz) mgl.MultiDrawElementsIndirect(drawtype, __mgl_buffer_meta_type(ds.indexsz), (const void *)(cmd_offset * sizeof(mgl_indexed_indirect_cmd)), cmd_count, 0);
 	else mgl.MultiDrawArraysIndirect(drawtype, (const void *)(cmd_offset * sizeof(mgl_indirect_cmd)), cmd_count, 0);
 
 	mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
@@ -3598,5 +3598,14 @@ MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl
 MGL_API void mglDestroyProgram(mgl_program program) { mgl.DeleteProgram(program.id); }
 MGL_API void mglDestroyShader(mgl_shader shader) { mgl.DeleteShader(shader.id); }
 MGL_API void mglDestroyTexture(mgl_texture texture) { mgl.DeleteTextures(1, &(GLuint){ texture.id }); }
-MGL_API void mglDestroyBuffer(mgl_buffer buffer) { mgl.DeleteBuffers(1, &(GLuint){ buffer.id }); }
 MGL_API void mglDestroyDataStore(mgl_datastore ds) { mgl.DeleteVertexArrays(1, &(GLuint){ ds.id }); }
+MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds)
+{
+	mgl.BindVertexArray(ds.id);
+	mgl.BindBuffer(buffer.type, 0);
+	mgl.BindVertexArray(0);
+	mgl.DeleteBuffers(1, &(GLuint){ buffer.id });
+
+	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER) ds.indexsz = 0;
+	else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) ds.indirect = 0;
+}
