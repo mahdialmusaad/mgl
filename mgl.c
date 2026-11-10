@@ -1768,7 +1768,7 @@ static struct mgl_pfn_s {
 	void (APICALL *MultiDrawElementsBaseVertex)(GLenum, const GLsizei *, GLenum, const void *const*, GLsizei, const GLint *);
 	void (APICALL *MultiDrawElementsIndirect)(GLenum, GLenum, const void *, GLsizei, GLsizei);
 	void (APICALL *MultiDrawElementsIndirectCount)(GLenum, GLenum, const void *, GLintptr, GLsizei, GLsizei);
-	void (APICALL *NamedBufferData)(GLuint, GLsizeiptr, const void *, GLenum);
+	/*void (APICALL *NamedBufferData)(GLuint, GLsizeiptr, const void *, GLenum);
 	void (APICALL *NamedBufferStorage)(GLuint, GLsizeiptr, const void *, GLbitfield);
 	void (APICALL *NamedBufferSubData)(GLuint, GLintptr, GLsizeiptr, const void *);
 	void (APICALL *NamedFramebufferDrawBuffer)(GLuint, GLenum);
@@ -1779,7 +1779,7 @@ static struct mgl_pfn_s {
 	void (APICALL *NamedFramebufferTexture)(GLuint, GLenum, GLuint, GLint);
 	void (APICALL *NamedFramebufferTextureLayer)(GLuint, GLenum, GLuint, GLint, GLint);
 	void (APICALL *NamedRenderbufferStorage)(GLuint, GLenum, GLsizei, GLsizei);
-	void (APICALL *NamedRenderbufferStorageMultisample)(GLuint, GLsizei, GLenum, GLsizei, GLsizei);
+	void (APICALL *NamedRenderbufferStorageMultisample)(GLuint, GLsizei, GLenum, GLsizei, GLsizei);*/
 	void (APICALL *ObjectLabel)(GLenum, GLuint, GLsizei, const GLchar *);
 	void (APICALL *ObjectPtrLabel)(const void *, GLsizei, const GLchar *);
 	void (APICALL *PatchParameterfv)(GLenum, const GLfloat *);
@@ -1799,7 +1799,7 @@ static struct mgl_pfn_s {
 	void (APICALL *PrimitiveRestartIndex)(GLuint);
 	void (APICALL *ProgramBinary)(GLuint, GLenum, const void *, GLsizei);
 	void (APICALL *ProgramParameteri)(GLuint, GLenum, GLint);
-	void (APICALL *ProgramUniform1d)(GLuint, GLint, GLdouble);
+	/*void (APICALL *ProgramUniform1d)(GLuint, GLint, GLdouble);
 	void (APICALL *ProgramUniform1dv)(GLuint, GLint, GLsizei, const GLdouble *);
 	void (APICALL *ProgramUniform1f)(GLuint, GLint, GLfloat);
 	void (APICALL *ProgramUniform1fv)(GLuint, GLint, GLsizei, const GLfloat *);
@@ -1848,7 +1848,7 @@ static struct mgl_pfn_s {
 	void (APICALL *ProgramUniformMatrix4x2dv)(GLuint, GLint, GLsizei, GLboolean, const GLdouble *);
 	void (APICALL *ProgramUniformMatrix4x2fv)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
 	void (APICALL *ProgramUniformMatrix4x3dv)(GLuint, GLint, GLsizei, GLboolean, const GLdouble *);
-	void (APICALL *ProgramUniformMatrix4x3fv)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);
+	void (APICALL *ProgramUniformMatrix4x3fv)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *);*/
 	void (APICALL *ProvokingVertex)(GLenum);
 	void (APICALL *PushDebugGroup)(GLenum, GLuint, GLsizei, const GLchar *);
 	void (APICALL *QueryCounter)(GLuint, GLenum);
@@ -1989,7 +1989,7 @@ static struct mgl_pfn_s {
 	void (APICALL *VertexArrayElementBuffer)(GLuint, GLuint);
 	void (APICALL *VertexArrayVertexBuffer)(GLuint, GLuint, GLuint, GLintptr, GLsizei);
 	void (APICALL *VertexArrayVertexBuffers)(GLuint, GLuint, GLsizei, const GLuint *, const GLintptr *, const GLsizei *);
-	void (APICALL *VertexAttrib1d)(GLuint, GLdouble);
+	/*void (APICALL *VertexAttrib1d)(GLuint, GLdouble);
 	void (APICALL *VertexAttrib1dv)(GLuint, const GLdouble *);
 	void (APICALL *VertexAttrib1f)(GLuint, GLfloat);
 	void (APICALL *VertexAttrib1fv)(GLuint, const GLfloat *);
@@ -2025,9 +2025,9 @@ static struct mgl_pfn_s {
 	void (APICALL *VertexAttrib4ubv)(GLuint, const GLubyte *);
 	void (APICALL *VertexAttrib4uiv)(GLuint, const GLuint *);
 	void (APICALL *VertexAttrib4usv)(GLuint, const GLushort *);
-	void (APICALL *VertexAttribBinding)(GLuint, GLuint);
+	void (APICALL *VertexAttribBinding)(GLuint, GLuint);*/
 	void (APICALL *VertexAttribDivisor)(GLuint, GLuint);
-	void (APICALL *VertexAttribFormat)(GLuint, GLint, GLenum, GLboolean, GLuint);
+	/*void (APICALL *VertexAttribFormat)(GLuint, GLint, GLenum, GLboolean, GLuint);
 	void (APICALL *VertexAttribI1i)(GLuint, GLint);
 	void (APICALL *VertexAttribI1iv)(GLuint, const GLint *);
 	void (APICALL *VertexAttribI1ui)(GLuint, GLuint);
@@ -2048,26 +2048,26 @@ static struct mgl_pfn_s {
 	void (APICALL *VertexAttribI4ui)(GLuint, GLuint, GLuint, GLuint, GLuint);
 	void (APICALL *VertexAttribI4uiv)(GLuint, const GLuint *);
 	void (APICALL *VertexAttribI4usv)(GLuint, const GLushort *);
-	void (APICALL *VertexAttribIFormat)(GLuint, GLint, GLenum, GLuint);
+	void (APICALL *VertexAttribIFormat)(GLuint, GLint, GLenum, GLuint);*/
 	void (APICALL *VertexAttribIPointer)(GLuint, GLint, GLenum, GLsizei, const void *);
-	void (APICALL *VertexAttribL1d)(GLuint, GLdouble);
+	/*void (APICALL *VertexAttribL1d)(GLuint, GLdouble);
 	void (APICALL *VertexAttribL1dv)(GLuint, const GLdouble *);
 	void (APICALL *VertexAttribL2d)(GLuint, GLdouble, GLdouble);
 	void (APICALL *VertexAttribL2dv)(GLuint, const GLdouble *);
 	void (APICALL *VertexAttribL3d)(GLuint, GLdouble, GLdouble, GLdouble);
 	void (APICALL *VertexAttribL3dv)(GLuint, const GLdouble *);
 	void (APICALL *VertexAttribL4d)(GLuint, GLdouble, GLdouble, GLdouble, GLdouble);
-	void (APICALL *VertexAttribL4dv)(GLuint, const GLdouble *);
-	void (APICALL *VertexAttribLFormat)(GLuint, GLint, GLenum, GLuint);
+	void (APICALL *VertexAttribL4dv)(GLuint, const GLdouble *);)
+	void (APICALL *VertexAttribLFormat)(GLuint, GLint, GLenum, GLuint);*/
 	void (APICALL *VertexAttribLPointer)(GLuint, GLint, GLenum, GLsizei, const void *);
-	void (APICALL *VertexAttribP1ui)(GLuint, GLenum, GLboolean, GLuint);
+	/*void (APICALL *VertexAttribP1ui)(GLuint, GLenum, GLboolean, GLuint);
 	void (APICALL *VertexAttribP1uiv)(GLuint, GLenum, GLboolean, const GLuint *);
 	void (APICALL *VertexAttribP2ui)(GLuint, GLenum, GLboolean, GLuint);
 	void (APICALL *VertexAttribP2uiv)(GLuint, GLenum, GLboolean, const GLuint *);
 	void (APICALL *VertexAttribP3ui)(GLuint, GLenum, GLboolean, GLuint);
 	void (APICALL *VertexAttribP3uiv)(GLuint, GLenum, GLboolean, const GLuint *);
 	void (APICALL *VertexAttribP4ui)(GLuint, GLenum, GLboolean, GLuint);
-	void (APICALL *VertexAttribP4uiv)(GLuint, GLenum, GLboolean, const GLuint *);
+	void (APICALL *VertexAttribP4uiv)(GLuint, GLenum, GLboolean, const GLuint *);*/
 	void (APICALL *VertexAttribPointer)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void *);
 	void (APICALL *VertexBindingDivisor)(GLuint, GLuint);
 	void (APICALL *Viewport)(GLint, GLint, GLsizei, GLsizei);
@@ -2634,7 +2634,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.MapNamedBuffer = (void *(APICALL *)(GLuint, GLenum))load("glMapNamedBuffer");
 		mgl.MapNamedBufferRange = (void *(APICALL *)(GLuint, GLintptr, GLsizeiptr, GLbitfield))load("glMapNamedBufferRange");
 		mgl.MemoryBarrierByRegion = (void(APICALL *)(GLbitfield))load("glMemoryBarrierByRegion");
-		mgl.NamedBufferData = (void(APICALL *)(GLuint, GLsizeiptr, const void *, GLenum))load("glNamedBufferData");
+		/*mgl.NamedBufferData = (void(APICALL *)(GLuint, GLsizeiptr, const void *, GLenum))load("glNamedBufferData");
 		mgl.NamedBufferStorage = (void(APICALL *)(GLuint, GLsizeiptr, const void *, GLbitfield))load("glNamedBufferStorage");
 		mgl.NamedBufferSubData = (void(APICALL *)(GLuint, GLintptr, GLsizeiptr, const void *))load("glNamedBufferSubData");
 		mgl.NamedFramebufferDrawBuffer = (void(APICALL *)(GLuint, GLenum))load("glNamedFramebufferDrawBuffer");
@@ -2645,7 +2645,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.NamedFramebufferTexture = (void(APICALL *)(GLuint, GLenum, GLuint, GLint))load("glNamedFramebufferTexture");
 		mgl.NamedFramebufferTextureLayer = (void(APICALL *)(GLuint, GLenum, GLuint, GLint, GLint))load("glNamedFramebufferTextureLayer");
 		mgl.NamedRenderbufferStorage = (void(APICALL *)(GLuint, GLenum, GLsizei, GLsizei))load("glNamedRenderbufferStorage");
-		mgl.NamedRenderbufferStorageMultisample = (void(APICALL *)(GLuint, GLsizei, GLenum, GLsizei, GLsizei))load("glNamedRenderbufferStorageMultisample");
+		mgl.NamedRenderbufferStorageMultisample = (void(APICALL *)(GLuint, GLsizei, GLenum, GLsizei, GLsizei))load("glNamedRenderbufferStorageMultisample");*/
 		mgl.ReadnPixels = (void(APICALL *)(GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, GLsizei, void *))load("glReadnPixels");
 		mgl.TextureBarrier = (void(APICALL *)(void))load("glTextureBarrier");
 		mgl.TextureBuffer = (void(APICALL *)(GLuint, GLenum, GLuint))load("glTextureBuffer");
@@ -2727,10 +2727,10 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.TexStorage2DMultisample = (void(APICALL *)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLboolean))load("glTexStorage2DMultisample");
 		mgl.TexStorage3DMultisample = (void(APICALL *)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLsizei, GLboolean))load("glTexStorage3DMultisample");
 		mgl.TextureView = (void(APICALL *)(GLuint, GLenum, GLuint, GLenum, GLuint, GLuint, GLuint, GLuint))load("glTextureView");
-		mgl.VertexAttribBinding = (void(APICALL *)(GLuint, GLuint))load("glVertexAttribBinding");
+		/*mgl.VertexAttribBinding = (void(APICALL *)(GLuint, GLuint))load("glVertexAttribBinding");
 		mgl.VertexAttribFormat = (void(APICALL *)(GLuint, GLint, GLenum, GLboolean, GLuint))load("glVertexAttribFormat");
 		mgl.VertexAttribIFormat = (void(APICALL *)(GLuint, GLint, GLenum, GLuint))load("glVertexAttribIFormat");
-		mgl.VertexAttribLFormat = (void(APICALL *)(GLuint, GLint, GLenum, GLuint))load("glVertexAttribLFormat");
+		mgl.VertexAttribLFormat = (void(APICALL *)(GLuint, GLint, GLenum, GLuint))load("glVertexAttribLFormat");*/
 		mgl.VertexBindingDivisor = (void(APICALL *)(GLuint, GLuint))load("glVertexBindingDivisor");
 		FALLTHROUGH
 	case 42:
@@ -2767,7 +2767,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.IsProgramPipeline = (GLboolean(APICALL *)(GLuint))load("glIsProgramPipeline");
 		mgl.ProgramBinary = (void(APICALL *)(GLuint, GLenum, const void *, GLsizei))load("glProgramBinary");
 		mgl.ProgramParameteri = (void(APICALL *)(GLuint, GLenum, GLint))load("glProgramParameteri");
-		mgl.ProgramUniform1d = (void(APICALL *)(GLuint, GLint, GLdouble))load("glProgramUniform1d");
+		/*mgl.ProgramUniform1d = (void(APICALL *)(GLuint, GLint, GLdouble))load("glProgramUniform1d");
 		mgl.ProgramUniform1dv = (void(APICALL *)(GLuint, GLint, GLsizei, const GLdouble *))load("glProgramUniform1dv");
 		mgl.ProgramUniform1f = (void(APICALL *)(GLuint, GLint, GLfloat))load("glProgramUniform1f");
 		mgl.ProgramUniform1fv = (void(APICALL *)(GLuint, GLint, GLsizei, const GLfloat *))load("glProgramUniform1fv");
@@ -2816,7 +2816,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.ProgramUniformMatrix4x2dv = (void(APICALL *)(GLuint, GLint, GLsizei, GLboolean, const GLdouble *))load("glProgramUniformMatrix4x2dv");
 		mgl.ProgramUniformMatrix4x2fv = (void(APICALL *)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *))load("glProgramUniformMatrix4x2fv");
 		mgl.ProgramUniformMatrix4x3dv = (void(APICALL *)(GLuint, GLint, GLsizei, GLboolean, const GLdouble *))load("glProgramUniformMatrix4x3dv");
-		mgl.ProgramUniformMatrix4x3fv = (void(APICALL *)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *))load("glProgramUniformMatrix4x3fv");
+		mgl.ProgramUniformMatrix4x3fv = (void(APICALL *)(GLuint, GLint, GLsizei, GLboolean, const GLfloat *))load("glProgramUniformMatrix4x3fv");*/
 		mgl.ReleaseShaderCompiler = (void(APICALL *)(void))load("glReleaseShaderCompiler");
 		mgl.ScissorArrayv = (void(APICALL *)(GLuint, GLsizei, const GLint *))load("glScissorArrayv");
 		mgl.ScissorIndexed = (void(APICALL *)(GLuint, GLint, GLint, GLsizei, GLsizei))load("glScissorIndexed");
@@ -2824,14 +2824,14 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.ShaderBinary = (void(APICALL *)(GLsizei, const GLuint *, GLenum, const void *, GLsizei))load("glShaderBinary");
 		mgl.UseProgramStages = (void(APICALL *)(GLuint, GLbitfield, GLuint))load("glUseProgramStages");
 		mgl.ValidateProgramPipeline = (void(APICALL *)(GLuint))load("glValidateProgramPipeline");
-		mgl.VertexAttribL1d = (void(APICALL *)(GLuint, GLdouble))load("glVertexAttribL1d");
+		/*mgl.VertexAttribL1d = (void(APICALL *)(GLuint, GLdouble))load("glVertexAttribL1d");
 		mgl.VertexAttribL1dv = (void(APICALL *)(GLuint, const GLdouble *))load("glVertexAttribL1dv");
 		mgl.VertexAttribL2d = (void(APICALL *)(GLuint, GLdouble, GLdouble))load("glVertexAttribL2d");
 		mgl.VertexAttribL2dv = (void(APICALL *)(GLuint, const GLdouble *))load("glVertexAttribL2dv");
 		mgl.VertexAttribL3d = (void(APICALL *)(GLuint, GLdouble, GLdouble, GLdouble))load("glVertexAttribL3d");
 		mgl.VertexAttribL3dv = (void(APICALL *)(GLuint, const GLdouble *))load("glVertexAttribL3dv");
 		mgl.VertexAttribL4d = (void(APICALL *)(GLuint, GLdouble, GLdouble, GLdouble, GLdouble))load("glVertexAttribL4d");
-		mgl.VertexAttribL4dv = (void(APICALL *)(GLuint, const GLdouble *))load("glVertexAttribL4dv");
+		mgl.VertexAttribL4dv = (void(APICALL *)(GLuint, const GLdouble *))load("glVertexAttribL4dv");*/
 		mgl.VertexAttribLPointer = (void(APICALL *)(GLuint, GLint, GLenum, GLsizei, const void *))load("glVertexAttribLPointer");
 		mgl.ViewportArrayv = (void(APICALL *)(GLuint, GLsizei, const GLfloat *))load("glViewportArrayv");
 		mgl.ViewportIndexedf = (void(APICALL *)(GLuint, GLfloat, GLfloat, GLfloat, GLfloat))load("glViewportIndexedf");
@@ -2906,14 +2906,14 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.SamplerParameteri = (void(APICALL *)(GLuint, GLenum, GLint))load("glSamplerParameteri");
 		mgl.SamplerParameteriv = (void(APICALL *)(GLuint, GLenum, const GLint *))load("glSamplerParameteriv");
 		mgl.VertexAttribDivisor = (void(APICALL *)(GLuint, GLuint))load("glVertexAttribDivisor");
-		mgl.VertexAttribP1ui = (void(APICALL *)(GLuint, GLenum, GLboolean, GLuint))load("glVertexAttribP1ui");
+		/*mgl.VertexAttribP1ui = (void(APICALL *)(GLuint, GLenum, GLboolean, GLuint))load("glVertexAttribP1ui");
 		mgl.VertexAttribP1uiv = (void(APICALL *)(GLuint, GLenum, GLboolean, const GLuint *))load("glVertexAttribP1uiv");
 		mgl.VertexAttribP2ui = (void(APICALL *)(GLuint, GLenum, GLboolean, GLuint))load("glVertexAttribP2ui");
 		mgl.VertexAttribP2uiv = (void(APICALL *)(GLuint, GLenum, GLboolean, const GLuint *))load("glVertexAttribP2uiv");
 		mgl.VertexAttribP3ui = (void(APICALL *)(GLuint, GLenum, GLboolean, GLuint))load("glVertexAttribP3ui");
 		mgl.VertexAttribP3uiv = (void(APICALL *)(GLuint, GLenum, GLboolean, const GLuint *))load("glVertexAttribP3uiv");
 		mgl.VertexAttribP4ui = (void(APICALL *)(GLuint, GLenum, GLboolean, GLuint))load("glVertexAttribP4ui");
-		mgl.VertexAttribP4uiv = (void(APICALL *)(GLuint, GLenum, GLboolean, const GLuint *))load("glVertexAttribP4uiv");
+		mgl.VertexAttribP4uiv = (void(APICALL *)(GLuint, GLenum, GLboolean, const GLuint *))load("glVertexAttribP4uiv");*/
 		FALLTHROUGH
 	case 32:
 		mgl.ClientWaitSync = (GLenum(APICALL *)(GLsync, GLbitfield, GLuint64))load("glClientWaitSync");
@@ -3017,7 +3017,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.Uniform3uiv = (void(APICALL *)(GLint, GLsizei, const GLuint *))load("glUniform3uiv");
 		mgl.Uniform4ui = (void(APICALL *)(GLint, GLuint, GLuint, GLuint, GLuint))load("glUniform4ui");
 		mgl.Uniform4uiv = (void(APICALL *)(GLint, GLsizei, const GLuint *))load("glUniform4uiv");
-		mgl.VertexAttribI1i = (void(APICALL *)(GLuint, GLint))load("glVertexAttribI1i");
+		/*mgl.VertexAttribI1i = (void(APICALL *)(GLuint, GLint))load("glVertexAttribI1i");
 		mgl.VertexAttribI1iv = (void(APICALL *)(GLuint, const GLint *))load("glVertexAttribI1iv");
 		mgl.VertexAttribI1ui = (void(APICALL *)(GLuint, GLuint))load("glVertexAttribI1ui");
 		mgl.VertexAttribI1uiv = (void(APICALL *)(GLuint, const GLuint *))load("glVertexAttribI1uiv");
@@ -3036,7 +3036,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.VertexAttribI4ubv = (void(APICALL *)(GLuint, const GLubyte *))load("glVertexAttribI4ubv");
 		mgl.VertexAttribI4ui = (void(APICALL *)(GLuint, GLuint, GLuint, GLuint, GLuint))load("glVertexAttribI4ui");
 		mgl.VertexAttribI4uiv = (void(APICALL *)(GLuint, const GLuint *))load("glVertexAttribI4uiv");
-		mgl.VertexAttribI4usv = (void(APICALL *)(GLuint, const GLushort *))load("glVertexAttribI4usv");
+		mgl.VertexAttribI4usv = (void(APICALL *)(GLuint, const GLushort *))load("glVertexAttribI4usv");*/
 		mgl.VertexAttribIPointer = (void(APICALL *)(GLuint, GLint, GLenum, GLsizei, const void *))load("glVertexAttribIPointer");
 		FALLTHROUGH
 	case 21:
@@ -3104,7 +3104,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.UniformMatrix4fv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLfloat *))load("glUniformMatrix4fv");
 		mgl.UseProgram = (void(APICALL *)(GLuint))load("glUseProgram");
 		mgl.ValidateProgram = (void(APICALL *)(GLuint))load("glValidateProgram");
-		mgl.VertexAttrib1d = (void(APICALL *)(GLuint, GLdouble))load("glVertexAttrib1d");
+		/*mgl.VertexAttrib1d = (void(APICALL *)(GLuint, GLdouble))load("glVertexAttrib1d");
 		mgl.VertexAttrib1dv = (void(APICALL *)(GLuint, const GLdouble *))load("glVertexAttrib1dv");
 		mgl.VertexAttrib1f = (void(APICALL *)(GLuint, GLfloat))load("glVertexAttrib1f");
 		mgl.VertexAttrib1fv = (void(APICALL *)(GLuint, const GLfloat *))load("glVertexAttrib1fv");
@@ -3139,7 +3139,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.VertexAttrib4sv = (void(APICALL *)(GLuint, const GLshort *))load("glVertexAttrib4sv");
 		mgl.VertexAttrib4ubv = (void(APICALL *)(GLuint, const GLubyte *))load("glVertexAttrib4ubv");
 		mgl.VertexAttrib4uiv = (void(APICALL *)(GLuint, const GLuint *))load("glVertexAttrib4uiv");
-		mgl.VertexAttrib4usv = (void(APICALL *)(GLuint, const GLushort *))load("glVertexAttrib4usv");
+		mgl.VertexAttrib4usv = (void(APICALL *)(GLuint, const GLushort *))load("glVertexAttrib4usv");*/
 		mgl.VertexAttribPointer = (void(APICALL *)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void *))load("glVertexAttribPointer");
 		FALLTHROUGH
 	case 15:
