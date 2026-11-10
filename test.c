@@ -10,6 +10,17 @@ static int wwidth = 1280, wheight = 720;
 static void err(int id, const char *desc) { printf("ERROR %d: %s\n", id, desc); }
 static void framebuffer(GLFWwindow *window, int width, int height) { (void)window; mglViewport(0, 0, wwidth = width, wheight = height); }
 
+#ifdef __GNUC__
+#pragma GCC diagnostic push
+#pragma GCC diagnostic ignored "-Wbad-function-cast"
+#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
+#endif
+
+static float nrand(void)
+{
+	return (float)((double)rand() * (1.0 / (double)RAND_MAX));
+}
+
 int main(int argc, char **argv)
 {
 	if (argc == 2 && argv[1][0] == 'x') glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
@@ -166,7 +177,8 @@ int main(int argc, char **argv)
 
 	int location = mglLocateUniform(program, "col");
 	int samplerloc = mglLocateUniform(program2, "tex");
-	int wire = 0, cd = 0, cdf2 = 0, fid = 0;
+	int wire = 0, cd = 0, cdf2 = 0;
+	size_t fid = 0;
 	float indcol[3];
 
 	const int texbinding = 0;
@@ -182,9 +194,9 @@ int main(int argc, char **argv)
 	mglBindTexture(tex, texbinding);
 	mglSetUniform(program2, samplerloc, MGL_SAMPLER, 1, &texbinding);
 
-	srand(time(NULL));
+	srand((unsigned int)time(NULL));
 
-	double start;
+	double start = 0.0;
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -197,31 +209,32 @@ int main(int argc, char **argv)
 		mglDraw(ds2, program2, MGL_DRAW_STRIPS, 0, 4);
 		mglSetUniform(program, location, MGL_FLOAT3, 1, (float[3]){ 1.0f, 1.0f, 1.0f });
 		mglDrawInstanced(ds4, program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3);
-		if (fid++ % 60 == 0) { indcol[0] = (float)rand() / RAND_MAX; indcol[1] = (float)rand() / RAND_MAX; indcol[2] = (float)rand() / RAND_MAX; };
+		if (fid++ % 60 == 0) { indcol[0] = nrand(); indcol[1] = nrand(); indcol[2] = nrand(); }
 		mglSetUniform(program, location, MGL_FLOAT3, 1, indcol);
 		mglDrawIndirect(ds, program, MGL_DRAW_STRIPS, (fid / 60) % 2, 1);
 		mglDraw(ds3, program3, MGL_DRAW_STRIPS, 0, 6);
-		ubo.ubo_position[0] = ubo.ubo_position[0] > 0.9f ? ((ubo.ubo_position[1] += 0.1f), -1.0f) : ubo.ubo_position[0] + 0.016f;
+		ubo.ubo_position[0] = ubo.ubo_position[0] > 0.9f ? ((void)((ubo.ubo_position[1] += 0.1f)), -1.0f) : ubo.ubo_position[0] + 0.016f;
 		ubo.ubo_position[1] = ubo.ubo_position[1] > 1.0f ? -0.9f : ubo.ubo_position[1];
 		mglBufferDataPartial(ubo_buffer, &ubo, 0, sizeof ubo);
 		glfwSwapBuffers(window);
 		if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS && !cdf2) {
 			cdf2 = 1;
+			const size_t w = (size_t)wwidth, h = (size_t)wheight;
 			FILE *ppm = fopen("screenshot.ppm", "w");
-			unsigned char *pixels = malloc((wwidth + 1) * wheight * 3);
-			unsigned char *trow = pixels + wwidth * wheight * 3;
-			size_t rowsz = wwidth * 3;
+			unsigned char *pixels = (unsigned char *)malloc((w + 1) * h * 3);
+			unsigned char *trow = pixels + w * h * 3;
+			size_t rowsz = w * 3;
 			if (!ppm || !pixels) goto end;
-			fprintf(ppm, "P6 %d %d 255 ", wwidth, wheight);
-			mglReadFrame(0, 0, wwidth, wheight, pixels, MGL_RGB);
-			for (int y = 0; y < wheight / 2; ++y) {
+			fprintf(ppm, "P6 %d %d 255 ", (int)w, (int)h);
+			mglReadFrame(0, 0, (int)w, (int)h, pixels, MGL_RGB);
+			for (size_t y = 0; y < h / 2; ++y) {
 				unsigned char *top = pixels + y * rowsz;
-				unsigned char *bottom = pixels + (wheight - y - 1) * rowsz;
+				unsigned char *bottom = pixels + (h - y - 1) * rowsz;
 				memcpy(trow, top, rowsz);
 				memcpy(top, bottom, rowsz);
 				memcpy(bottom, trow, rowsz);
 			}
-			fwrite(pixels, wwidth * wheight * 3, 1, ppm);
+			fwrite(pixels, w * h * 3, 1, ppm);
 		end:
 			if (pixels) free(pixels);
 			if (ppm) fclose(ppm);
@@ -253,3 +266,7 @@ int main(int argc, char **argv)
 
 	glfwTerminate();
 }
+
+#ifdef __GNUC__
+#pragma GCC diagnostic pop
+#endif

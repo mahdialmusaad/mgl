@@ -17,8 +17,8 @@
    51 Franklin Street, Fifth Floor, Boston, MA 02110-1301 USA.
 */
 
-#ifndef _MGL_SRC_H_
-#define _MGL_SRC_H_
+#ifndef MGL_HDR
+#define MGL_HDR
 
 #include <stddef.h>
 
@@ -212,7 +212,7 @@ MGL_API void mglViewport(int x, int y, int width, int height);
 MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type);
 /* Set the data of the created buffer.
    Data may be NULL - this will have the effect of reserving the memory.
-   Index buffers must be 4 bytes each. TODO: byte and short indices */
+   Index buffers must be 4 bytes each. */
 MGL_API void mglBufferData(mgl_buffer buffer, mgl_usage usage, const void *data, size_t bytes);
 /* Set a specific part of the buffer data. */
 MGL_API void mglBufferDataPartial(mgl_buffer buffer, const void *data, size_t offset, size_t bytes);
