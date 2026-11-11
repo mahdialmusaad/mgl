@@ -35,7 +35,13 @@ int main(int argc, char **argv)
 	glfwSwapInterval(1);
 	mglInit(glfwGetProcAddress);
 
-	printf("%s | %s\n", mglString(MGL_STRING_VERSION), mglString(MGL_STRING_RENDERER));
+	printf("GL %s | GLSL %s | %s (%s)\n", mglString(MGL_STRING_VERSION), mglString(MGL_STRING_GLSLVERSION), mglString(MGL_STRING_RENDERER), mglString(MGL_STRING_VENDOR));
+	printf("Extensions: %d (%s, ..., %s)\n", (int)mglValue(MGL_VALUE_NUMEXTS), mglString(MGL_STRING_EXTENSION0), mglString(MGL_STRING_EXTENSION0 + (unsigned)mglValue(MGL_VALUE_NUMEXTS) - 1));
+	printf(
+		"Maximum counts: %d uniforms, %d UBOs (any shader), %d SSBOs (any shader) | Maximum sizes: %dB UBO, %dB SSBO\n",
+		mglValue(MGL_VALUE_MAX_UNIFORMS), mglValue(MGL_VALUE_MAX_UBOS), mglValue(MGL_VALUE_MAX_SSBOS),
+		mglValue(MGL_VALUE_MAX_UBO_SIZE), mglValue(MGL_VALUE_MAX_SSBO_SIZE)
+	);
 
 	mglDebug(err);
 
@@ -95,10 +101,10 @@ int main(int argc, char **argv)
 	mglDestroyShader(fragment3);
 
 	const float verts[] = {
-		 0.0f,  0.0f, // TL
-		 0.1f,  0.0f, // TR
-		 0.0f, -0.1f, // BL
-		 0.1f, -0.1f, // BR
+		 0.0f,  0.0f,
+		 0.1f,  0.0f,
+		 0.0f, -0.1f,
+		 0.1f, -0.1f
 	};
 	const float instanced[] = {
 		-1.0f,   1.0f,
@@ -115,7 +121,7 @@ int main(int argc, char **argv)
 		-0.5f,   0.5f,
 		 0.4f,   0.5f,
 		-0.5f,  -0.4f,
-		 0.4f,  -0.4f,
+		 0.4f,  -0.4f
 	};
 	const mgl_indirect_cmd indirect[] = {
 		{ 4, 4, 0, 0 },
@@ -123,10 +129,10 @@ int main(int argc, char **argv)
 	};
 
 	const float verts2[] = {
-		 0.0f,  0.0f,  0.0f, 0.0f, // TL
-		 0.1f,  0.0f,  1.0f, 0.0f, // TR
-		 0.0f, -0.1f,  0.0f, 1.0f, // BL
-		 0.1f, -0.1f,  1.0f, 1.0f  // BR
+		 0.0f,  0.0f,  0.0f, 0.0f,
+		 0.1f,  0.0f,  1.0f, 0.0f,
+		 0.0f, -0.1f,  0.0f, 1.0f,
+		 0.1f, -0.1f,  1.0f, 1.0f
 	};
 
 	const unsigned int inds[] = {
@@ -184,10 +190,10 @@ int main(int argc, char **argv)
 	const int texbinding = 0;
 
 	const unsigned char texpixels[] = {
-		255, 0,   0,   // R
-		0,   255, 0,   // G
-		0,   0,   255, // B
-		255, 255, 255  // W
+		255, 0,   0,
+		0,   255, 0,
+		0,   0,   255,
+		255, 255, 255
 	};
 
 	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_RGB);

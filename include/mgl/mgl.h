@@ -98,17 +98,37 @@ typedef enum {
 } mgl_usage;
 
 typedef enum {
+	/* Manufacturer of GPU. */
 	MGL_STRING_VENDOR,
+	/* Name of GPU. */
 	MGL_STRING_RENDERER,
+	/* Version string in the form of MAJOR.MINOR[.RELEASE] [VENDOR_SPECIFIC] where anything enclosed in [...] is optional. */
 	MGL_STRING_VERSION,
+	/* GLSL version string (same format as normal version string). */
 	MGL_STRING_GLSLVERSION,
-	/* For other extensions, query MGL_STRING_EXTENSION0 + index. */
+	/* Name of first supported extension.
+	   For other extensions, query MGL_STRING_EXTENSION0 + i. */
 	MGL_STRING_EXTENSION0
 
 } mgl_stringid;
 
 typedef enum {
-	MGL_VALUE_PLACEHOLDER /* TODO */
+	/* Major version number of context. */
+	MGL_VALUE_VERSION_MAJOR,
+	/* Minor version number of context. */
+	MGL_VALUE_VERSION_MINOR,
+	/* Number of extensions supported. */
+	MGL_VALUE_NUMEXTS,
+	/* Maximum number of uniform locations. */
+	MGL_VALUE_MAX_UNIFORMS,
+	/* Maximum number of UBOs able to be bound to any shader at once. */
+	MGL_VALUE_MAX_UBOS,
+	/* Maximum number of SSBOs able to be bound to any shader at once. */
+	MGL_VALUE_MAX_SSBOS,
+	/* Maximum shader size of a UBO. */
+	MGL_VALUE_MAX_UBO_SIZE,
+	/* Maximum shader size of an SSBO. */
+	MGL_VALUE_MAX_SSBO_SIZE,
 } mgl_valueid;
 
 typedef enum {
@@ -119,21 +139,21 @@ typedef enum {
 	/* Buffer to store indices to vertex data.
 	   Can specify index data as being unsigned bytes, unsigned shorts or unsigned integers. */
 	MGL_BUFFER_INDICES_UBYTE, MGL_BUFFER_INDICES_USHORT, MGL_BUFFER_INDICES_UINT,
-	/* Uniform buffer data.
+	/* Uniform buffer data (UBO).
 	   Must be bound to a program, corresponding to a named uniform in it. */
 	MGL_BUFFER_UNIFORM,
 	/* Indirect buffer data.
 	   Specifies multiple instanced draw commands to be executed at once.
 	   4.0+ context required. */
 	MGL_BUFFER_DRAW_INDIRECT,
-	/* Shader storage buffer data.
+	/* Shader storage buffer data (SSBO).
 	   Similar to uniform buffer data, but typically has a larger capacity.
 	   4.3+ context required. */
 	MGL_BUFFER_SHADER_STORAGE
 } mgl_buffertype;
 
 typedef enum { MGL_ACCESS_READ, MGL_ACCESS_WRITE, MGL_ACCESS_READWRITE, MGL_ACCESS_UNMAP } mgl_access;
-typedef enum { MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT, MGL_SHADER_COMPUTE } mgl_shadertype;
+typedef enum { MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT /*MGL_SHADER_COMPUTE*/ } mgl_shadertype;
 typedef enum { MGL_CLEAR_DEPTH = 0x1, MGL_CLEAR_STENCIL = 0x2, MGL_CLEAR_COLOR = 0x4 } mgl_clearbits;
 typedef enum { MGL_DRAW_TRIANGLES, MGL_DRAW_STRIPS, MGL_DRAW_LINES, MGL_DRAW_POINTS } mgl_drawtype;
 
@@ -192,9 +212,9 @@ MGL_API int mglInit(void (*loader(const char *))(void));
 /* Set debug handler for errors. */
 MGL_API void mglDebug(void (*debug_callback)(int id, const char *name));
 
-/* Returns null-terminated OpenGL string. */
-MGL_API const char *mglString(mgl_stringid id);
-/* Get OpenGL value. */
+/* Returns a null-terminated OpenGL string. */
+MGL_API const char *mglString(unsigned int id);
+/* Retrieve a value relating to the context's capabilities. */
 MGL_API int mglValue(mgl_valueid id);
 
 /* Clears specific buffers indicated by a bitfield of mgl_clearbits values. */

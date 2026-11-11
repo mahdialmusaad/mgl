@@ -2077,7 +2077,13 @@ static struct mgl_pfn_s {
 	void (APICALL *WaitSync)(GLsync, GLbitfield, GLuint64);
 
 	void (*user_debug)(int, const char *);
-	int major, minor, version;
+
+	int version;
+	int major, minor;
+
+	int num_extensions;
+	int max_ubo_size, max_ssbo_size;
+	int max_ubos, max_ssbos, max_uniforms;
 
 	char pad_1[4];
 } mgl;
@@ -2155,22 +2161,37 @@ static void APICALL mgl_internal_debug_callback(
 }
 #endif
 
-static GLenum mgl_internal_string_type(mgl_stringid type)
+static GLenum mgl_internal_string_id(unsigned int id)
 {
-	if (type >= MGL_STRING_EXTENSION0) return GL_EXTENSIONS;
-	switch ((int)type) {
+	if (id >= MGL_STRING_EXTENSION0 && id <= (MGL_STRING_EXTENSION0 + 1027)) return GL_EXTENSIONS;
+	switch ((int)id) {
 		case MGL_STRING_VENDOR: return GL_VENDOR;
 		case MGL_STRING_RENDERER: return GL_RENDERER;
 		case MGL_STRING_VERSION: return GL_VERSION;
 		case MGL_STRING_GLSLVERSION: return GL_SHADING_LANGUAGE_VERSION;
-		default: MGL_INVALID_LOG("Invalid string type %u\n", type);
+		default: MGL_INVALID_LOG("Invalid string type/id %u\n", id);
 	}
 }
-static GLenum mgl_internal_value_type(mgl_valueid type)
+static int mgl_internal_getinteger(GLenum id)
+{
+	GLint value;
+	mgl.GetIntegerv(id, &value);
+	return value;
+}
+static int mgl_internal_value_direct(mgl_valueid type)
 {
 	switch ((int)type) {
-
-		default: MGL_INVALID_LOG("Invalid value type %u\n", type);
+		case MGL_VALUE_VERSION_MAJOR: return mgl.major;
+		case MGL_VALUE_VERSION_MINOR: return mgl.minor;
+		case MGL_VALUE_NUMEXTS: return mgl.num_extensions;
+		case MGL_VALUE_MAX_UNIFORMS: return mgl.max_uniforms;
+		case MGL_VALUE_MAX_UBOS: return mgl.max_ubos;
+		case MGL_VALUE_MAX_SSBOS: return mgl.max_ssbos;
+		case MGL_VALUE_MAX_UBO_SIZE: return mgl.max_ubo_size;
+		case MGL_VALUE_MAX_SSBO_SIZE: return mgl.max_ssbo_size;
+		default:
+			mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid value type %u\n", type);
+			return 0;
 	}
 }
 
@@ -2519,8 +2540,8 @@ static GLenum mgl_internal_shader_type(mgl_shadertype type)
 	switch ((int)type) {
 		case MGL_SHADER_VERTEX: return GL_VERTEX_SHADER;
 		case MGL_SHADER_FRAGMENT: return GL_FRAGMENT_SHADER;
-		case MGL_SHADER_COMPUTE: return GL_COMPUTE_SHADER;
-		default: MGL_INVALID_LOG("Invalid shader type %u (expected MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT or MGL_SHADER_COMPUTE)\n", type);
+		/*case MGL_SHADER_COMPUTE: return GL_COMPUTE_SHADER;*/
+		default: MGL_INVALID_LOG("Invalid shader type %u (expected MGL_SHADER_VERTEX or MGL_SHADER_FRAGMENT)\n", type);
 	}
 }
 
@@ -2547,7 +2568,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 #pragma warning(disable:4191)
 #endif
 
-	GLint major, minor, version;
+	GLint major, minor, version, max;
 
 	mgl.GetIntegerv = (void (APICALL *)(GLenum, GLint *))load("glGetIntegerv");
 	if (!mgl.GetIntegerv) return 0;
@@ -3269,9 +3290,24 @@ MGL_API int mglInit(void (*load(const char *))(void))
 #pragma clang diagnostic pop
 #endif
 
+	mgl.version = version;
 	mgl.major = major;
 	mgl.minor = minor;
-	mgl.version = version;
+
+	mgl.max_ubos = mgl_internal_getinteger(GL_MAX_UNIFORM_BUFFER_BINDINGS);
+	if ((max = mgl_internal_getinteger(GL_MAX_COMBINED_UNIFORM_BLOCKS)) < mgl.max_ubos) mgl.max_ubos = max;
+	if ((max = mgl_internal_getinteger(GL_MAX_VERTEX_UNIFORM_BLOCKS)) < mgl.max_ubos) mgl.max_ubos = max;
+	if ((max = mgl_internal_getinteger(GL_MAX_FRAGMENT_UNIFORM_BLOCKS)) < mgl.max_ubos) mgl.max_ubos = max;
+
+	mgl.max_ssbos = mgl_internal_getinteger(GL_MAX_SHADER_STORAGE_BUFFER_BINDINGS);
+	if ((max = mgl_internal_getinteger(GL_MAX_COMBINED_SHADER_STORAGE_BLOCKS)) < mgl.max_ssbos) mgl.max_ssbos = max;
+	if ((max = mgl_internal_getinteger(GL_MAX_VERTEX_SHADER_STORAGE_BLOCKS)) < mgl.max_ssbos) mgl.max_ssbos = max;
+	if ((max = mgl_internal_getinteger(GL_MAX_FRAGMENT_SHADER_STORAGE_BLOCKS)) < mgl.max_ssbos) mgl.max_ssbos = max;
+
+	mgl.max_ssbo_size = mgl_internal_getinteger(GL_MAX_SHADER_STORAGE_BLOCK_SIZE);
+	mgl.max_ubo_size = mgl_internal_getinteger(GL_MAX_UNIFORM_BLOCK_SIZE);
+	mgl.max_uniforms = mgl_internal_getinteger(GL_MAX_UNIFORM_LOCATIONS);
+	mgl.num_extensions = mgl_internal_getinteger(GL_NUM_EXTENSIONS);
 
 	return version;
 }
@@ -3289,18 +3325,16 @@ MGL_API void mglDebug(void (*debug_callback)(int, const char *))
 #endif
 }
 
-MGL_API const char *mglString(mgl_stringid id)
+MGL_API const char *mglString(unsigned int id)
 {
-	GLenum underlying_id = mgl_internal_string_type(id);
+	GLenum underlying_id = mgl_internal_string_id(id);
 	if (underlying_id == MGL_INVALID_ENUM) return NULL;
 	else if (underlying_id == GL_EXTENSIONS) return (const char *)mgl.GetStringi(underlying_id, id - MGL_STRING_EXTENSION0);
 	else return (const char *)mgl.GetString(underlying_id);
 }
 MGL_API int mglValue(mgl_valueid id)
 {
-	GLenum underlying_id = mgl_internal_value_type(id);
-	GLint result = -1;
-	if (underlying_id != MGL_INVALID_ENUM) mgl.GetIntegerv(underlying_id, &result);
+	int result = mgl_internal_value_direct(id);
 	return result;
 }
 
@@ -3611,7 +3645,7 @@ MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtyp
 	GLsizei ucount;
 
 	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for instanced drawing (DSID %u)\n", ds.id);
-	if (instance_offset && !mgl.DrawArraysInstancedBaseInstance) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Instance offset is not supported (%d)\n", mgl.version);
+	if (instance_offset && !mgl.DrawArraysInstancedBaseInstance) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Instance offset requires OpenGL 4.2 (have %d.%d)\n", mgl.major, mgl.minor);
 	if (!count || !instance_count) return;
 
 	drawtype = mgl_internal_primitive_type(primitive);
