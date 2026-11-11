@@ -3337,6 +3337,18 @@ MGL_API int mglValue(mgl_valueid id)
 	int result = mgl_internal_value_direct(id);
 	return result;
 }
+MGL_API void mglTimestamp(unsigned int *lower_bits, unsigned int *higher_bits)
+{
+	GLint64 tsgl;
+	GLuint64 ts;
+
+	mgl.GetInteger64v(GL_TIMESTAMP, &tsgl);
+	if (tsgl < 0) ts = 0;
+	else ts = (GLuint64)tsgl;
+
+	if (lower_bits) *lower_bits = (unsigned int)(ts & 0xFFFFFFFF);
+	if (higher_bits) *higher_bits = (unsigned int)(ts >> 32);
+}
 
 MGL_API void mglClear(unsigned int clearbits)
 {

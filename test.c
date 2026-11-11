@@ -1,9 +1,11 @@
 #include "mgl/mgl.h"
 #include "GLFW/glfw3.h"
 
-#include <stdio.h>
+#include <inttypes.h>
 #include <stdlib.h>
 #include <string.h>
+#include <stdint.h>
+#include <stdio.h>
 #include <time.h>
 
 static int wwidth = 1280, wheight = 720;
@@ -19,6 +21,13 @@ static void framebuffer(GLFWwindow *window, int width, int height) { (void)windo
 static float nrand(void)
 {
 	return (float)((double)rand() * (1.0 / (double)RAND_MAX));
+}
+
+static uint64_t timestamp(void)
+{
+	unsigned int lo, hi;
+	mglTimestamp(&lo, &hi);
+	return ((uint64_t)hi << 32) | lo;
 }
 
 int main(int argc, char **argv)
@@ -42,6 +51,7 @@ int main(int argc, char **argv)
 		mglValue(MGL_VALUE_MAX_UNIFORMS), mglValue(MGL_VALUE_MAX_UBOS), mglValue(MGL_VALUE_MAX_SSBOS),
 		mglValue(MGL_VALUE_MAX_UBO_SIZE), mglValue(MGL_VALUE_MAX_SSBO_SIZE)
 	);
+	printf("Current timestamp: %" PRIu64 "\n", timestamp());
 
 	mglDebug(err);
 

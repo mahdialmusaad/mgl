@@ -216,6 +216,9 @@ MGL_API void mglDebug(void (*debug_callback)(int id, const char *name));
 MGL_API const char *mglString(unsigned int id);
 /* Retrieve a value relating to the context's capabilities. */
 MGL_API int mglValue(mgl_valueid id);
+/* Get the current GL timestamp in nanoseconds as a split 64-bit number.
+   Any pointer may be NULL if you do not want those bits. */
+MGL_API void mglTimestamp(unsigned int *lower_bits, unsigned int *higher_bits);
 
 /* Clears specific buffers indicated by a bitfield of mgl_clearbits values. */
 MGL_API void mglClear(unsigned int clearbits);
