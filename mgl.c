@@ -2085,7 +2085,7 @@ static struct mgl_pfn_s {
 	int max_ubo_size, max_ssbo_size;
 	int max_ubos, max_ssbos, max_uniforms;
 
-	char pad_1[4];
+	int max_attribs;
 } mgl;
 
 #ifdef __GNUC__
@@ -2100,6 +2100,7 @@ static struct mgl_pfn_s {
 #define MGL_EMPTY
 #define MGL_INVALID_LOG(msg, ...) do { mgl_internal_log(MGL_ERROR_INVALID_ENUM, msg, __VA_ARGS__); return MGL_INVALID_ENUM; } while (0)
 #define MGL_LOG_RETURN(ret, id, msg, ...) do { mgl_internal_log(id, msg, __VA_ARGS__); return ret; } while (0)
+#define MGL_WARN_ONCE(msg, ...) do { static int warn_L##__LINE__ = 0; if (!warn_L##__LINE__++) { mgl_internal_log(MGL_ERROR_MAYBE, msg, __VA_ARGS__); } return ret; } while (0)
 
 #ifdef __GNUC__
 __attribute__((__format__ (__printf__, 2, 3)))
@@ -2184,6 +2185,7 @@ static int mgl_internal_value_direct(mgl_valueid type)
 		case MGL_VALUE_VERSION_MAJOR: return mgl.major;
 		case MGL_VALUE_VERSION_MINOR: return mgl.minor;
 		case MGL_VALUE_NUMEXTS: return mgl.num_extensions;
+		case MGL_VALUE_MAX_ATTRIBS: return mgl.max_attribs;
 		case MGL_VALUE_MAX_UNIFORMS: return mgl.max_uniforms;
 		case MGL_VALUE_MAX_UBOS: return mgl.max_ubos;
 		case MGL_VALUE_MAX_SSBOS: return mgl.max_ssbos;
@@ -2322,7 +2324,7 @@ static GLenum mgl_internal_buffer_index_type(unsigned int indexsz)
 		case 1: return GL_UNSIGNED_BYTE;
 		case 2: return GL_UNSIGNED_SHORT;
 		case 3: return GL_UNSIGNED_INT;
-		default: MGL_INVALID_LOG("Invalid buffer meta type %u\n", indexsz);
+		default: return 0;
 	}
 }
 
@@ -2554,6 +2556,13 @@ static GLenum mgl_internal_primitive_type(mgl_drawtype type)
 		case MGL_DRAW_POINTS: return GL_POINTS;
 		default: MGL_INVALID_LOG("Invalid primitive type %u\n", type);
 	}
+}
+
+static GLint mgl_internal_getvertattrib(unsigned int index, GLenum type)
+{
+	GLint result;
+	mgl.GetVertexAttribiv(index, type, &result);
+	return result;
 }
 
 MGL_API int mglInit(void (*load(const char *))(void))
@@ -3309,6 +3318,8 @@ MGL_API int mglInit(void (*load(const char *))(void))
 	mgl.max_uniforms = mgl_internal_getinteger(GL_MAX_UNIFORM_LOCATIONS);
 	mgl.num_extensions = mgl_internal_getinteger(GL_NUM_EXTENSIONS);
 
+	mgl.max_attribs = mgl_internal_getinteger(GL_MAX_VERTEX_ATTRIBS);
+
 	return version;
 }
 MGL_API void mglDebug(void (*debug_callback)(int, const char *))
@@ -3632,32 +3643,169 @@ MGL_API void mglSetUniform(mgl_program program, int location, mgl_datatype type,
 	mgl.UseProgram(0);
 }
 
-MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t offset, size_t count)
+MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count)
 {
 	GLenum drawtype = mgl_internal_primitive_type(primitive);
-	GLsizei ucount = (GLsizei)count;
 
 	if (drawtype == MGL_INVALID_ENUM) return;
 
 	mgl.UseProgram(program.id);
 	mgl.BindVertexArray(ds.id);
 
-	if (ds.indexsz) mgl.DrawElements(drawtype, ucount, mgl_internal_buffer_index_type(ds.indexsz), (const void *)(offset * mgl_internal_buffer_index_size(ds.indexsz)));
-	else mgl.DrawArrays(drawtype, (GLsizei)offset, ucount);
+	if (ds.indexsz) mgl.DrawElements(drawtype, (GLsizei)count, mgl_internal_buffer_index_type(ds.indexsz), (const void *)(offset * mgl_internal_buffer_index_size(ds.indexsz)));
+	else mgl.DrawArrays(drawtype, (GLint)offset, (GLsizei)count);
 
 	mgl.BindVertexArray(0);
 	mgl.UseProgram(0);
 }
-MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t offset, size_t count, size_t instance_offset, size_t instance_count)
+
+static void mgl_internal_base_vertex_ebo(
+	size_t offset, size_t count,
+	unsigned int indexsz, int basevertex
+) {
+	size_t sizeof_element = mgl_internal_buffer_index_size(indexsz);
+	void *elements;
+
+	GLuint ebo = (GLuint)mgl_internal_getinteger(GL_ELEMENT_ARRAY_BUFFER_BINDING);
+	mgl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, ebo);
+
+	elements = (unsigned char *)mgl.MapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY) + offset;
+
+	for (size_t i = 0; i < count; ++i) {
+		/* TODO: type expansion */
+		switch (sizeof_element) {
+			case 4: ((GLuint *)elements)[i] = (GLuint)((intptr_t)((GLuint *)elements)[i] + basevertex); break;
+			case 2: ((GLushort *)elements)[i] = (GLushort)((intptr_t)((GLushort *)elements)[i] + basevertex); break;
+			case 1: FALLTHROUGH
+			default: ((GLubyte *)elements)[i] = (GLubyte)((intptr_t)((GLubyte *)elements)[i] + basevertex); break;
+		}
+	}
+
+	mgl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+}
+
+enum mgl_attrib_func {
+	FUNC_FLOAT,
+	FUNC_INTEGER,
+	FUNC_LONG
+};
+
+struct mgl_attrib_fc {
+	void *roffset;
+	enum mgl_attrib_func func;
+	int stride, components;
+	GLenum type;
+	GLuint vbo;
+	GLboolean normalized, pad[3];
+};
+
+static void mgl_internal_reset_attribs(
+	struct mgl_attrib_fc *attribs,
+	unsigned int bitfield_completed
+) {
+	for (unsigned int i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
+		const struct mgl_attrib_fc *attrib = &attribs[i];
+		if ((bitfield_completed & (1 << i)) == 0) continue;
+
+		mgl.BindBuffer(GL_ARRAY_BUFFER, attrib->vbo);
+
+		switch ((int)attrib->func) {
+			case FUNC_INTEGER: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->stride, attrib->roffset); break;
+			case FUNC_LONG:  mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, attrib->roffset); break;
+			case FUNC_FLOAT: FALLTHROUGH
+			default: mgl.VertexAttribPointer(i, attrib->components, attrib->type, attrib->normalized, attrib->stride, attrib->roffset); break;
+		}
+	}
+}
+
+static void mgl_internal_draw_instanced(
+	mgl_datastore ds, mgl_program program,
+	GLenum drawtype, GLenum index_type, size_t data_offset,
+	int vertex_offset, unsigned int count,
+	unsigned int instance_offset, unsigned int instance_count
+) {
+	GLuint uioffset = (GLuint)instance_offset;
+	GLsizei uicount = (GLsizei)instance_count;
+	GLint uvoffset = (GLint)vertex_offset;
+	GLsizei ucount = (GLsizei)count;
+
+	unsigned int completed_bitfield = 0, original_check = (uioffset || uvoffset) ? (unsigned int)mgl.max_attribs : 0;
+	int fallback_modify = 0;
+
+	struct mgl_attrib_fc original[32];
+
+	/* TODO: handle gl_VertexID */
+	(void)program;
+
+	if (mgl.DrawArraysInstancedBaseInstance) {
+		if (ds.indexsz) mgl.DrawElementsInstancedBaseVertexBaseInstance(drawtype, ucount, index_type, (const void *)data_offset, uicount, uvoffset, uioffset);
+		else mgl.DrawArraysInstancedBaseInstance(drawtype, (GLint)data_offset, ucount, uicount, uioffset);
+		return;
+	}
+
+	for (unsigned int i = 0; i < original_check; ++i) {
+		struct mgl_attrib_fc *attrib = &original[i];
+		GLint sizeof_component;
+		intptr_t noffset;
+		GLuint divisor;
+
+		if (!mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED)) continue;
+
+		divisor = (GLuint)mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_DIVISOR);
+		if (divisor == 0 && !uvoffset) continue;
+		if (divisor != 0 && !uioffset) continue;
+
+		mgl.GetVertexAttribPointerv(i, GL_VERTEX_ATTRIB_ARRAY_POINTER, &attrib->roffset);
+		attrib->normalized = (GLboolean)mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_NORMALIZED);
+		attrib->vbo = (GLuint)mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+		attrib->type = (GLenum)mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_TYPE);
+		attrib->components = mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_SIZE);
+
+		sizeof_component = (GLint)mgl_internal_underlying_type_size(attrib->type);
+
+		attrib->stride = mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_STRIDE);
+		if (attrib->stride == 0) attrib->stride = attrib->components * (int)sizeof_component;
+
+		if (mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_INTEGER)) attrib->func = FUNC_INTEGER;
+		else if (mgl.VertexAttribLPointer && mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_LONG)) attrib->func = FUNC_LONG;
+		else attrib->func = FUNC_FLOAT;
+
+		if (divisor == 0) noffset = (vertex_offset * attrib->stride)  + (intptr_t)attrib->roffset;
+		else noffset = (int)(instance_offset / divisor) * attrib->stride  + (intptr_t)attrib->roffset;
+
+		if (noffset < 0) {
+			mgl_internal_reset_attribs(original, completed_bitfield);
+			mgl_internal_base_vertex_ebo(data_offset, (size_t)ucount, ds.indexsz, uvoffset);
+			fallback_modify = 1;
+			break;
+		}
+
+		mgl.BindBuffer(GL_ARRAY_BUFFER, attrib->vbo);
+
+		switch ((int)attrib->func) {
+			case FUNC_INTEGER: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)noffset); break;
+			case FUNC_LONG:  mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)noffset); break;
+			case FUNC_FLOAT: FALLTHROUGH
+			default: mgl.VertexAttribPointer(i, attrib->components, attrib->type, attrib->normalized, attrib->stride, (const void *)noffset); break;
+		}
+
+		completed_bitfield |= 1 << i;
+	}
+
+	if (ds.indexsz) mgl.DrawElementsInstanced(drawtype, ucount, index_type, (const void *)data_offset, uicount);
+	else mgl.DrawArraysInstanced(drawtype, (GLint)data_offset, ucount, uicount);
+
+	if (fallback_modify) mgl_internal_base_vertex_ebo(data_offset, (size_t)ucount, ds.indexsz, -uvoffset);
+	else mgl_internal_reset_attribs(original, completed_bitfield);
+
+	mgl.BindBuffer(GL_ARRAY_BUFFER, 0);
+}
+MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count, unsigned int instance_offset, unsigned int instance_count, int element_constant)
 {
 	GLenum drawtype;
-	size_t index_size;
-	GLuint uioffset;
-	GLsizei uicount;
-	GLsizei ucount;
 
+	if (!ds.indexsz && element_constant) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "element_constant (%d) is only available for drawing with an element buffer (DSID %u)\n", element_constant, ds.id);
 	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for instanced drawing (DSID %u)\n", ds.id);
-	if (instance_offset && !mgl.DrawArraysInstancedBaseInstance) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Instance offset requires OpenGL 4.2 (have %d.%d)\n", mgl.major, mgl.minor);
 	if (!count || !instance_count) return;
 
 	drawtype = mgl_internal_primitive_type(primitive);
@@ -3666,30 +3814,32 @@ MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtyp
 	mgl.UseProgram(program.id);
 	mgl.BindVertexArray(ds.id);
 
-	index_size = mgl_internal_buffer_index_size(ds.indexsz);
-	uioffset = (GLuint)instance_offset;
-	uicount = (GLsizei)instance_count;
-	ucount = (GLsizei)count;
-
-	if (mgl.DrawArraysInstancedBaseInstance) {
-		if (ds.indexsz) mgl.DrawElementsInstancedBaseInstance(drawtype, ucount, mgl_internal_buffer_index_type(ds.indexsz), (const void *)(offset * index_size), uicount, uioffset);
-		else mgl.DrawArraysInstancedBaseInstance(drawtype, (GLint)offset, ucount, uicount, uioffset);
+	if (ds.indexsz) {
+		mgl_internal_draw_instanced(
+			ds, program,
+			drawtype, mgl_internal_buffer_index_type(ds.indexsz),
+			(size_t)offset * mgl_internal_buffer_index_size(ds.indexsz),
+			element_constant, count, instance_offset, instance_count
+		);
 	} else {
-		if (ds.indexsz) mgl.DrawElementsInstanced(drawtype, ucount, mgl_internal_buffer_index_type(ds.indexsz), (const void *)(offset * index_size), uicount);
-		else mgl.DrawArraysInstanced(drawtype, (GLint)offset, ucount, uicount);
+		mgl_internal_draw_instanced(
+			ds, program,
+			drawtype, 0,
+			(size_t)offset,
+			0, count, instance_offset, instance_count
+		);
 	}
 
 	mgl.BindVertexArray(0);
 	mgl.UseProgram(0);
 }
-MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t cmd_offset, size_t cmd_count)
+MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int cmd_offset, unsigned int cmd_count)
 {
 	GLenum drawtype;
 
 	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for indirect drawing (DSID %u)\n", ds.id);
 	if (!ds.indirect) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No indirect buffer available for indirect drawing (DSID %u)\n", ds.id);
 	if (!cmd_count) return;
-	if (mgl.version < 42) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Indirect drawing requires OpenGL 4.2 (have %d.%d)\n", mgl.major, mgl.minor);
 
 	drawtype = mgl_internal_primitive_type(primitive);
 	if (drawtype == MGL_INVALID_ENUM) return;
@@ -3697,13 +3847,47 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 	mgl.UseProgram(program.id);
 	mgl.BindVertexArray(ds.id);
 
-	mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, ds.indirect);
+	if (mgl.MultiDrawArraysIndirect) {
+		mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, ds.indirect);
+		if (ds.indexsz) mgl.MultiDrawElementsIndirect(drawtype, mgl_internal_buffer_index_type(ds.indexsz), (const void *)(cmd_offset * (intptr_t)sizeof(mgl_indexed_indirect_cmd)), (GLsizei)cmd_count, 0);
+		else mgl.MultiDrawArraysIndirect(drawtype, (const void *)(cmd_offset * (intptr_t)sizeof(mgl_indirect_cmd)), (GLsizei)cmd_count, 0);
+		mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+	} else {
 
-	/* TODO: multi indirect equivalent for older contexts */
-	if (ds.indexsz) mgl.MultiDrawElementsIndirect(drawtype, mgl_internal_buffer_index_type(ds.indexsz), (const void *)(cmd_offset * sizeof(mgl_indexed_indirect_cmd)), (GLsizei)cmd_count, 0);
-	else mgl.MultiDrawArraysIndirect(drawtype, (const void *)(cmd_offset * sizeof(mgl_indirect_cmd)), (GLsizei)cmd_count, 0);
+		unsigned int last = cmd_offset + cmd_count;
+		const void *mapcmds;
 
-	mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
+		mgl.BindBuffer(GL_COPY_READ_BUFFER, ds.indirect);
+		mapcmds = mgl.MapBuffer(GL_COPY_READ_BUFFER, GL_READ_ONLY);
+
+		if (ds.indexsz) {
+			size_t index_size = mgl_internal_buffer_index_size(ds.indexsz);
+			GLenum index_type = mgl_internal_buffer_index_type(ds.indexsz);
+			for (unsigned int i = cmd_offset; i < last; ++i) {
+				const mgl_indexed_indirect_cmd *cmd = (const mgl_indexed_indirect_cmd *)mapcmds + i;
+				mgl_internal_draw_instanced(
+					ds, program,
+					drawtype, index_type,
+					cmd->first_index * index_size,
+					cmd->base_vertex, cmd->count,
+					cmd->base_instance, cmd->instance_count
+				);
+			}
+		} else {
+			for (unsigned int i = cmd_offset; i < last; ++i) {
+				const mgl_indirect_cmd *cmd = (const mgl_indirect_cmd *)mapcmds + i;
+				mgl_internal_draw_instanced(
+					ds, program,
+					drawtype, 0,
+					cmd->first, 0, cmd->count,
+					cmd->base_instance, cmd->instance_count
+				);
+			}
+		}
+
+		mgl.UnmapBuffer(GL_COPY_READ_BUFFER);
+		mgl.BindBuffer(GL_COPY_READ_BUFFER, 0);
+	}
 
 	mgl.BindVertexArray(0);
 	mgl.UseProgram(0);

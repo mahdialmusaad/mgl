@@ -47,8 +47,8 @@ int main(int argc, char **argv)
 	printf("GL %s | GLSL %s | %s (%s)\n", mglString(MGL_STRING_VERSION), mglString(MGL_STRING_GLSLVERSION), mglString(MGL_STRING_RENDERER), mglString(MGL_STRING_VENDOR));
 	printf("Extensions: %d (%s, ..., %s)\n", (int)mglValue(MGL_VALUE_NUMEXTS), mglString(MGL_STRING_EXTENSION0), mglString(MGL_STRING_EXTENSION0 + (unsigned)mglValue(MGL_VALUE_NUMEXTS) - 1));
 	printf(
-		"Maximum counts: %d uniforms, %d UBOs (any shader), %d SSBOs (any shader) | Maximum sizes: %dB UBO, %dB SSBO\n",
-		mglValue(MGL_VALUE_MAX_UNIFORMS), mglValue(MGL_VALUE_MAX_UBOS), mglValue(MGL_VALUE_MAX_SSBOS),
+		"Maximum counts: %d vertex attribs, %d uniforms, %d UBOs (any shader), %d SSBOs (any shader) | Maximum sizes: %dB UBO, %dB SSBO\n",
+		mglValue(MGL_VALUE_MAX_ATTRIBS), mglValue(MGL_VALUE_MAX_UNIFORMS), mglValue(MGL_VALUE_MAX_UBOS), mglValue(MGL_VALUE_MAX_SSBOS),
 		mglValue(MGL_VALUE_MAX_UBO_SIZE), mglValue(MGL_VALUE_MAX_SSBO_SIZE)
 	);
 	printf("Current timestamp: %" PRIu64 "\n", timestamp());
@@ -224,7 +224,7 @@ int main(int argc, char **argv)
 		mglClear(MGL_CLEAR_COLOR);
 		mglDraw(ds2, program2, MGL_DRAW_STRIPS, 0, 4);
 		mglSetUniform(program, location, MGL_FLOAT3, 1, (float[3]){ 1.0f, 1.0f, 1.0f });
-		mglDrawInstanced(ds4, program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3);
+		mglDrawInstanced(ds4, program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3, 0);
 		if (fid++ % 60 == 0) { indcol[0] = nrand(); indcol[1] = nrand(); indcol[2] = nrand(); }
 		mglSetUniform(program, location, MGL_FLOAT3, 1, indcol);
 		mglDrawIndirect(ds, program, MGL_DRAW_STRIPS, (fid / 60) % 2, 1);

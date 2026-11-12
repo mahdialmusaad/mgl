@@ -119,6 +119,8 @@ typedef enum {
 	MGL_VALUE_VERSION_MINOR,
 	/* Number of extensions supported. */
 	MGL_VALUE_NUMEXTS,
+	/* Maximum number of vertex shader attribute locations. */
+	MGL_VALUE_MAX_ATTRIBS,
 	/* Maximum number of uniform locations. */
 	MGL_VALUE_MAX_UNIFORMS,
 	/* Maximum number of UBOs able to be bound to any shader at once. */
@@ -274,11 +276,12 @@ MGL_API int mglLocateUniform(mgl_program program, const char *name);
 MGL_API void mglSetUniform(mgl_program program, int location, mgl_datatype type, unsigned int count, const void *data);
 
 /* Draw using the given data store, program, primitive type and vertex/index offset and count. */
-MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t offset, size_t count);
-/* Draw using the given data store, program, primitive type and the offset and count values for both the number of instances and number of vertices/indices. */
-MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t offset, size_t count, size_t instance_offset, size_t instance_count);
+MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count);
+/* Draw using the given data store, program, primitive type and the offset and count values for both the number of instances and number of vertices/indices.
+   element_constant is added to each index if an index buffer has been added to the data store. */
+MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count, unsigned int instance_offset, unsigned int instance_count, int element_constant);
 /* Draw using the given data store, program, primitive type and indirect command offset and count. */
-MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, size_t cmd_offset, size_t cmd_count);
+MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int cmd_offset, unsigned int cmd_count);
 
 /* Retrieve specific dimensions of the current frame's pixels as unsigned bytes in the given number of channels (type components). */
 MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format);
