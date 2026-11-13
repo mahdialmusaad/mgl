@@ -51,37 +51,34 @@ typedef enum {
 } mgl_state;
 
 typedef enum {
-	/* Byte/char vectors. */
+	/* Byte/char vectors (attribute = int) */
 	MGL_BYTE, MGL_BYTE2, MGL_BYTE3, MGL_BYTE4,
-	/* Unsigned byte/char vectors. */
+	/* Unsigned byte/char vectors (attribute = uint) */
 	MGL_UBYTE, MGL_UBYTE2, MGL_UBYTE3, MGL_UBYTE4,
-	/* Short vectors. */
+	/* Short vectors (attribute = int) */
 	MGL_SHORT, MGL_SHORT2, MGL_SHORT3, MGL_SHORT4,
-	/* Unsigned short vectors. */
+	/* Unsigned short vectors (attribute = uint) */
 	MGL_USHORT, MGL_USHORT2, MGL_USHORT3, MGL_USHORT4,
-	/* Integer vectors. */
+	/* Integer vectors */
 	MGL_INT, MGL_INT2, MGL_INT3, MGL_INT4,
-	/* Unsigned integer vectors. */
+	/* Unsigned integer vectors */
 	MGL_UINT, MGL_UINT2, MGL_UINT3, MGL_UINT4,
-	/* Float vectors. */
+	/* Float vectors */
 	MGL_FLOAT, MGL_FLOAT2, MGL_FLOAT3, MGL_FLOAT4,
 	/* Double vectors (4.1+) */
 	MGL_DOUBLE, MGL_DOUBLE2, MGL_DOUBLE3, MGL_DOUBLE4,
-	/* 2xY float matrices. */
+	/* 2xY float matrices */
 	MGL_MAT2X2, MGL_MAT2X3, MGL_MAT2X4,
-	/* 3xY float matrices. */
+	/* 3xY float matrices */
 	MGL_MAT3X2, MGL_MAT3X3, MGL_MAT3X4,
-	/* 4xY float matrices. */
+	/* 4xY float matrices */
 	MGL_MAT4X2, MGL_MAT4X3, MGL_MAT4X4,
-	/* 2xY double matrices. */
+	/* 2xY double matrices (4.1+) */
 	MGL_DMAT2X2, MGL_DMAT2X3, MGL_DMAT2X4,
-	/* 3xY double matrices. */
+	/* 3xY double matrices (4.1+) */
 	MGL_DMAT3X2, MGL_DMAT3X3, MGL_DMAT3X4,
-	/* 4xY double matrices. */
+	/* 4xY double matrices (4.1+) */
 	MGL_DMAT4X2, MGL_DMAT4X3, MGL_DMAT4X4,
-
-	/* Texture type. */
-	MGL_SAMPLER = MGL_INT
 } mgl_datatype;
 
 /* TODO: non-uchar color components */
@@ -164,6 +161,7 @@ typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } m
 typedef struct { unsigned int id, meta; } mgl_program;
 typedef struct { unsigned int id, meta; } mgl_shader;
 typedef struct { unsigned int id, meta; } mgl_texture;
+typedef struct { int location; unsigned int type; } mgl_uniform;
 
 typedef struct {
 	unsigned int count;
@@ -197,9 +195,9 @@ typedef struct {
 #define MGL_ERROR_GLSL -4
 /* The given buffer cannot be bound to a program - only a uniform or shader storage buffer. */
 #define MGL_ERROR_PROGRAM_UNBUFFERABLE -5
-/* The given type does not correspond to any uniform type.
-   If you gave a short or byte type, these are not supported as GLSL does not
-   natively support such type. Try sending a normal integer type instead. */
+/* The given uniform name does not match any uniform variable defined in the given shader.
+   Make sure the name matches byte-for-byte. If you are sure the name is correct, this could
+   be due to the uniform being unused or due to having too many uniforms. */
 #define MGL_ERROR_INVALID_UNIFORM -6
 /* The data store's current configuration does not support this type of drawing. */
 #define MGL_ERROR_NOT_DRAWABLE -7
@@ -247,7 +245,7 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access);
 /* Create a texture with the specified information. TODO: wrap and mag parameters */
 MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format);
 /* Bind the given texture to a specific texture unit.
-   You can set a sampler2D uniform to this unit using mglSetUniform with the MGL_SAMPLER2D type. */
+   To use this in shader code, use mglSetUniform with a sampler variable with a signed integer set to the same texture binding/unit. */
 MGL_API void mglBindTexture(mgl_texture texture, unsigned int binding);
 
 /* Create a buffer data store. You could use this to store mesh and index data. */
@@ -271,9 +269,9 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders);
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name);
 
 /* Locate a uniform by name. */
-MGL_API int mglLocateUniform(mgl_program program, const char *name);
-/* Set a uniform's value. */
-MGL_API void mglSetUniform(mgl_program program, int location, mgl_datatype type, unsigned int count, const void *data);
+MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name);
+/* Set a uniform's value. If it is not an array, set arraycount to 1. */
+MGL_API void mglSetUniform(mgl_program program, mgl_uniform uniform, unsigned int arraycount, const void *data);
 
 /* Draw using the given data store, program, primitive type and vertex/index offset and count. */
 MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count);

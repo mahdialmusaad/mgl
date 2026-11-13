@@ -191,8 +191,8 @@ int main(int argc, char **argv)
 	mglBufferData(ivbo4, MGL_USAGE_CONSTANT, instanced2, sizeof instanced2);
 	mglDataStoreAttribute(&ds4, ivbo4, 1, MGL_FLOAT2, 0, 0, 1);
 
-	int location = mglLocateUniform(program, "col");
-	int samplerloc = mglLocateUniform(program2, "tex");
+	mgl_uniform location = mglLocateUniform(program, "col");
+	mgl_uniform samplerloc = mglLocateUniform(program2, "tex");
 	int wire = 0, cd = 0, cdf2 = 0;
 	size_t fid = 0;
 	float indcol[3];
@@ -208,7 +208,7 @@ int main(int argc, char **argv)
 
 	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_RGB);
 	mglBindTexture(tex, texbinding);
-	mglSetUniform(program2, samplerloc, MGL_SAMPLER, 1, &texbinding);
+	mglSetUniform(program2, samplerloc, 1, &texbinding);
 
 	srand((unsigned int)time(NULL));
 
@@ -223,10 +223,10 @@ int main(int argc, char **argv)
 		mglClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		mglClear(MGL_CLEAR_COLOR);
 		mglDraw(ds2, program2, MGL_DRAW_STRIPS, 0, 4);
-		mglSetUniform(program, location, MGL_FLOAT3, 1, (float[3]){ 1.0f, 1.0f, 1.0f });
+		mglSetUniform(program, location, 1, (float[3]){ 1.0f, 1.0f, 1.0f });
 		mglDrawInstanced(ds4, program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3, 0);
 		if (fid++ % 60 == 0) { indcol[0] = nrand(); indcol[1] = nrand(); indcol[2] = nrand(); }
-		mglSetUniform(program, location, MGL_FLOAT3, 1, indcol);
+		mglSetUniform(program, location, 1, indcol);
 		mglDrawIndirect(ds, program, MGL_DRAW_STRIPS, (fid / 60) % 2, 1);
 		mglDraw(ds3, program3, MGL_DRAW_STRIPS, 0, 6);
 		ubo.ubo_position[0] = ubo.ubo_position[0] > 0.9f ? ((void)((ubo.ubo_position[1] += 0.1f)), -1.0f) : ubo.ubo_position[0] + 0.016f;

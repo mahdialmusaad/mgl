@@ -21,6 +21,7 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include <string.h>
 #include <stdio.h>
 
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__)
@@ -3587,57 +3588,70 @@ MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsign
 	mgl.BindBufferBase(buffer.type, binding_point, buffer.id);
 }
 
-MGL_API int mglLocateUniform(mgl_program program, const char *name)
+MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
 {
-	return mgl.GetUniformLocation(program.id, name);
-}
-MGL_API void mglSetUniform(mgl_program program, int location, mgl_datatype type, unsigned int count, const void *data)
-{
-	GLenum underlying;
-	GLint ucount = (GLint)count;
+	/* TODO: cache uniform count as program metadata, GL_ACTIVE_UNIFORM_MAX_LENGTH */
+	GLenum type = MGL_INVALID_ENUM;
+	GLint nuniforms, location = mgl.GetUniformLocation(program.id, name);
 
-	underlying = mgl_internal_data_type(type);
-	if (underlying == MGL_INVALID_ENUM) return;
-	if (underlying == GL_DOUBLE && !mgl.Uniform1d) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Double uniform type is unsupported (%d, needs 40+)\n", mgl.version);
+	if (location == -1) MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_uniform), MGL_ERROR_INVALID_UNIFORM, "Uniform variable '%s' does not match any uniform in program %u\n", name, program.id);
+
+	mgl.GetProgramiv(program.id, GL_ACTIVE_UNIFORMS, &nuniforms);
+
+	for (unsigned int i = 0; i < (unsigned int)nuniforms; ++i) {
+		char indexname[256];
+		GLint size;
+		mgl.GetActiveUniform(program.id, i, sizeof indexname, NULL, &size, &type, indexname);
+		if (strcmp(name, indexname) != 0) continue;
+	}
+
+	return (mgl_uniform){ location, type };
+}
+MGL_API void mglSetUniform(mgl_program program, mgl_uniform uniform, unsigned int arraycount, const void *data)
+{
+	GLint ucount = (GLint)arraycount;
+	ucount = ucount == 0 ? 1 : ucount;
 
 	mgl.UseProgram(program.id);
 
-	switch ((int)type) {
-		case MGL_INT: mgl.Uniform1iv(location, ucount, (const GLint *)data); break;
-		case MGL_INT2: mgl.Uniform2iv(location, ucount, (const GLint *)data); break;
-		case MGL_INT3: mgl.Uniform3iv(location, ucount, (const GLint *)data); break;
-		case MGL_INT4: mgl.Uniform4iv(location, ucount, (const GLint *)data); break;
-		case MGL_UINT: mgl.Uniform1uiv(location, ucount, (const GLuint *)data); break;
-		case MGL_UINT2: mgl.Uniform2uiv(location, ucount, (const GLuint *)data); break;
-		case MGL_UINT3: mgl.Uniform3uiv(location, ucount, (const GLuint *)data); break;
-		case MGL_UINT4: mgl.Uniform4uiv(location, ucount, (const GLuint *)data); break;
-		case MGL_FLOAT: mgl.Uniform1fv(location, ucount, (const GLfloat *)data); break;
-		case MGL_FLOAT2: mgl.Uniform2fv(location, ucount, (const GLfloat *)data); break;
-		case MGL_FLOAT3: mgl.Uniform3fv(location, ucount, (const GLfloat *)data); break;
-		case MGL_FLOAT4: mgl.Uniform4fv(location, ucount, (const GLfloat *)data); break;
-		case MGL_DOUBLE: mgl.Uniform1dv(location, ucount, (const GLdouble *)data); break;
-		case MGL_DOUBLE2: mgl.Uniform2dv(location, ucount, (const GLdouble *)data); break;
-		case MGL_DOUBLE3: mgl.Uniform3dv(location, ucount, (const GLdouble *)data); break;
-		case MGL_DOUBLE4: mgl.Uniform4dv(location, ucount, (const GLdouble *)data); break;
-		case MGL_MAT2X2: mgl.UniformMatrix2fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT2X3: mgl.UniformMatrix2x3fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT2X4: mgl.UniformMatrix2x4fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT3X2: mgl.UniformMatrix3fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT3X3: mgl.UniformMatrix3fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT3X4: mgl.UniformMatrix3x4fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT4X2: mgl.UniformMatrix4x2fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT4X3: mgl.UniformMatrix4x3fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_MAT4X4: mgl.UniformMatrix4fv(location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case MGL_DMAT2X2: mgl.UniformMatrix2dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT2X3: mgl.UniformMatrix2x3dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT2X4: mgl.UniformMatrix2x4dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT3X2: mgl.UniformMatrix3dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT3X3: mgl.UniformMatrix3dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT3X4: mgl.UniformMatrix3x4dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT4X2: mgl.UniformMatrix4x2dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT4X3: mgl.UniformMatrix4x3dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case MGL_DMAT4X4: mgl.UniformMatrix4dv(location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		default: MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Unsupported uniform type %u\n", type);
+	switch (uniform.type) {
+		case GL_SAMPLER_1D: case GL_SAMPLER_2D: case GL_SAMPLER_3D:
+		case GL_SAMPLER_1D_ARRAY: case GL_SAMPLER_2D_ARRAY:
+		case GL_BOOL: case GL_INT: mgl.Uniform1iv(uniform.location, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC2: case GL_INT_VEC2: mgl.Uniform2iv(uniform.location, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC3: case GL_INT_VEC3: mgl.Uniform3iv(uniform.location, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC4: case GL_INT_VEC4: mgl.Uniform4iv(uniform.location, ucount, (const GLint *)data); break;
+		case GL_UNSIGNED_INT: mgl.Uniform1uiv(uniform.location, ucount, (const GLuint *)data); break;
+		case GL_UNSIGNED_INT_VEC2: mgl.Uniform2uiv(uniform.location, ucount, (const GLuint *)data); break;
+		case GL_UNSIGNED_INT_VEC3: mgl.Uniform3uiv(uniform.location, ucount, (const GLuint *)data); break;
+		case GL_UNSIGNED_INT_VEC4: mgl.Uniform4uiv(uniform.location, ucount, (const GLuint *)data); break;
+		case GL_FLOAT: mgl.Uniform1fv(uniform.location, ucount, (const GLfloat *)data); break;
+		case GL_FLOAT_VEC2: mgl.Uniform2fv(uniform.location, ucount, (const GLfloat *)data); break;
+		case GL_FLOAT_VEC3: mgl.Uniform3fv(uniform.location, ucount, (const GLfloat *)data); break;
+		case GL_FLOAT_VEC4: mgl.Uniform4fv(uniform.location, ucount, (const GLfloat *)data); break;
+		case GL_DOUBLE: mgl.Uniform1dv(uniform.location, ucount, (const GLdouble *)data); break;
+		case GL_DOUBLE_VEC2: mgl.Uniform2dv(uniform.location, ucount, (const GLdouble *)data); break;
+		case GL_DOUBLE_VEC3: mgl.Uniform3dv(uniform.location, ucount, (const GLdouble *)data); break;
+		case GL_DOUBLE_VEC4: mgl.Uniform4dv(uniform.location, ucount, (const GLdouble *)data); break;
+		case GL_FLOAT_MAT2: mgl.UniformMatrix2fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT3: mgl.UniformMatrix3fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT4: mgl.UniformMatrix4fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT2x3: mgl.UniformMatrix2x3fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT2x4: mgl.UniformMatrix2x4fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT3x2: mgl.UniformMatrix3x2fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT3x4: mgl.UniformMatrix3x4fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT4x2: mgl.UniformMatrix4x2fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT4x3: mgl.UniformMatrix4x3fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_DOUBLE_MAT2: mgl.UniformMatrix2dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT3: mgl.UniformMatrix3dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT4: mgl.UniformMatrix4dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT2x3: mgl.UniformMatrix2x3dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT2x4: mgl.UniformMatrix2x4dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT3x2: mgl.UniformMatrix3x2dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT3x4: mgl.UniformMatrix3x4dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT4x2: mgl.UniformMatrix4x2dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT4x3: mgl.UniformMatrix4x3dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
+		default: MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Unsupported uniform type (%u)\n", uniform.type);
 	}
 
 	mgl.UseProgram(0);
@@ -3684,13 +3698,15 @@ static void mgl_internal_base_vertex_ebo(
 	mgl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
 }
 
-enum mgl_attrib_func {
+enum mgl_attrib_func
+{
 	FUNC_FLOAT,
 	FUNC_INTEGER,
 	FUNC_LONG
 };
 
-struct mgl_attrib_fc {
+struct mgl_attrib_fc
+{
 	void *roffset;
 	enum mgl_attrib_func func;
 	int stride, components;
@@ -3853,7 +3869,6 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 		else mgl.MultiDrawArraysIndirect(drawtype, (const void *)(cmd_offset * (intptr_t)sizeof(mgl_indirect_cmd)), (GLsizei)cmd_count, 0);
 		mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 	} else {
-
 		unsigned int last = cmd_offset + cmd_count;
 		const void *mapcmds;
 
