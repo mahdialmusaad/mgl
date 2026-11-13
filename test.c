@@ -89,26 +89,17 @@ int main(int argc, char **argv)
 	"in vec2 coords;"
 	"void main(){ frag = texture(tex, coords); }";
 
-	mgl_shader vertex = mglCreateShader(MGL_SHADER_VERTEX, &vertex_source, 1);
-	mgl_shader fragment = mglCreateShader(MGL_SHADER_FRAGMENT, &fragment_source, 1);
+	mgl_shader vertex = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source, 1);
+	mgl_shader fragment = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source, 1);
 	mgl_program program = mglCreateProgram((mgl_shader[]){vertex, fragment}, 2);
 
-	mglDestroyShader(vertex);
-	mglDestroyShader(fragment);
-
-	mgl_shader vertex2 = mglCreateShader(MGL_SHADER_VERTEX, &vertex_source2, 1);
-	mgl_shader fragment2 = mglCreateShader(MGL_SHADER_FRAGMENT, &fragment_source2, 1);
+	mgl_shader vertex2 = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source2, 1);
+	mgl_shader fragment2 = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source2, 1);
 	mgl_program program2 = mglCreateProgram((mgl_shader[]){vertex2, fragment2}, 2);
 
-	mglDestroyShader(vertex2);
-	mglDestroyShader(fragment2);
-
-	mgl_shader vertex3 = mglCreateShader(MGL_SHADER_VERTEX, &vertex_source3, 1);
-	mgl_shader fragment3 = mglCreateShader(MGL_SHADER_FRAGMENT, &fragment_source3, 1);
-	mgl_program program3 = mglCreateProgram((mgl_shader[]){vertex2, fragment3}, 2);
-
-	mglDestroyShader(vertex3);
-	mglDestroyShader(fragment3);
+	mgl_shader vertex3 = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source3, 1);
+	mgl_shader fragment3 = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source3, 1);
+	mgl_program program3 = mglCreateProgram((mgl_shader[]){vertex3, fragment3}, 2);
 
 	const float verts[] = {
 		 0.0f,  0.0f,

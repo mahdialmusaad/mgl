@@ -2096,7 +2096,7 @@ static struct mgl_pfn_s {
 #endif
 
 #define MGL_INVALID_ENUM 0x7FFFFFFF
-#define MGL_INVALID_OBJ(type) ((type){ MGL_INVALID_ID, 0 })
+#define MGL_INVALID_RET(type) ((type){ MGL_INVALID_ID })
 
 #define MGL_EMPTY
 #define MGL_INVALID_LOG(msg, ...) do { mgl_internal_log(MGL_ERROR_INVALID_ENUM, msg, __VA_ARGS__); return MGL_INVALID_ENUM; } while (0)
@@ -3405,7 +3405,7 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type)
 {
 	GLuint buf;
 	GLenum buftype = mgl_internal_buffer_type(type);
-	if (buftype == MGL_INVALID_ENUM) return (mgl_buffer){ MGL_INVALID_ID, 0, 0 };
+	if (buftype == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_buffer);
 	mgl.GenBuffers(1, &buf);
 	return (mgl_buffer){ buf, buftype, mgl_internal_buffer_index_id(type) };
 }
@@ -3440,8 +3440,7 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 	// TODO: non-unsigned byte pixel types
 	GLuint texture;
 	GLenum color = mgl_internal_color_type(format);
-
-	if (color == MGL_INVALID_ENUM) return MGL_INVALID_OBJ(mgl_texture);
+	if (color == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_texture);
 
 	mgl.GenTextures(1, &texture);
 	mgl.BindTexture(GL_TEXTURE_2D, texture);
@@ -3529,11 +3528,12 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigne
 
 MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, int nsources)
 {
-	GLenum stype = mgl_internal_shader_type(type);
+	unsigned int fragile = type & 0x1;
+	GLenum stype = mgl_internal_shader_type((mgl_shadertype)(type + fragile));
 	GLint success;
 	GLuint id;
 
-	if (stype == MGL_INVALID_ENUM) return MGL_INVALID_OBJ(mgl_shader);
+	if (stype == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_shader);
 
 	id = mgl.CreateShader(stype);
 	mgl.ShaderSource(id, nsources, sources, NULL);
@@ -3545,10 +3545,10 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 	if (!success) {
 		char buffer[2048];
 		mgl.GetShaderInfoLog(id, sizeof buffer, NULL, buffer);
-		MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_shader), MGL_ERROR_GLSL, "Shader creation error: %s", buffer);
+		MGL_LOG_RETURN((mgl_shader){ MGL_INVALID_ID }, MGL_ERROR_GLSL, "Shader creation error: %s", buffer);
 	}
 
-	return (mgl_shader){ id, stype };
+	return (mgl_shader){ id, stype, fragile };
 }
 MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 {
@@ -3558,6 +3558,7 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 	for (int i = 0; i < nshaders; ++i) mgl.AttachShader(program, shaders[i].id);
 	mgl.LinkProgram(program);
 	for (int i = 0; i < nshaders; ++i) mgl.DetachShader(program, shaders[i].id);
+	for (int i = 0; i < nshaders; ++i) if (shaders[i].fragile) mgl.DeleteShader(shaders[i].id);
 
 	success = 0;
 	mgl.GetProgramiv(program, GL_LINK_STATUS, &success);
@@ -3565,7 +3566,7 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 	if (!success) {
 		char buffer[2048];
 		mgl.GetProgramInfoLog(program, sizeof buffer, NULL, buffer);
-		MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_program), MGL_ERROR_GLSL, "Program creation error: %s", buffer);
+		MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "Program creation error: %s", buffer);
 	}
 
 	return (mgl_program){ program, 0 };
@@ -3594,7 +3595,7 @@ MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
 	GLenum type = MGL_INVALID_ENUM;
 	GLint nuniforms, location = mgl.GetUniformLocation(program.id, name);
 
-	if (location == -1) MGL_LOG_RETURN(MGL_INVALID_OBJ(mgl_uniform), MGL_ERROR_INVALID_UNIFORM, "Uniform variable '%s' does not match any uniform in program %u\n", name, program.id);
+	if (location == -1) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_uniform), MGL_ERROR_INVALID_UNIFORM, "Uniform variable '%s' does not match any uniform in program %u\n", name, program.id);
 
 	mgl.GetProgramiv(program.id, GL_ACTIVE_UNIFORMS, &nuniforms);
 
@@ -3928,4 +3929,6 @@ MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds)
 
 	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER) ds.indexsz = 0;
 	else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) ds.indirect = 0;
+
+	/* TODO: check attributes first  */
 }

@@ -152,16 +152,22 @@ typedef enum {
 } mgl_buffertype;
 
 typedef enum { MGL_ACCESS_READ, MGL_ACCESS_WRITE, MGL_ACCESS_READWRITE, MGL_ACCESS_UNMAP } mgl_access;
-typedef enum { MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT /*MGL_SHADER_COMPUTE*/ } mgl_shadertype;
+typedef enum
+{
+	/* Vertex shader type. */
+	MGL_SHADER_VERTEX_FRAGILE = 1, MGL_SHADER_VERTEX,
+	/* Fragment shader type. */
+	MGL_SHADER_FRAGMENT_FRAGILE, MGL_SHADER_FRAGMENT,
+} mgl_shadertype;
 typedef enum { MGL_CLEAR_DEPTH = 0x1, MGL_CLEAR_STENCIL = 0x2, MGL_CLEAR_COLOR = 0x4 } mgl_clearbits;
 typedef enum { MGL_DRAW_TRIANGLES, MGL_DRAW_STRIPS, MGL_DRAW_LINES, MGL_DRAW_POINTS } mgl_drawtype;
 
-typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } mgl_datastore;
-typedef struct { unsigned int id, meta; } mgl_program;
-typedef struct { unsigned int id, meta; } mgl_shader;
-typedef struct { unsigned int id, meta; } mgl_texture;
+typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
+typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
 typedef struct { int location; unsigned int type; } mgl_uniform;
+typedef struct { unsigned int id, meta; } mgl_program;
+typedef struct { unsigned int id, meta; } mgl_texture;
 
 typedef struct {
 	unsigned int count;
@@ -263,7 +269,7 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigne
 
 /* Create a shader of a specific type by combining multiple code sources. */
 MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, int nsources);
-/* Create a program from 1 or more shaders. */
+/* Create a program from 1 or more shaders. Any 'fragile' shader is destroyed after this. */
 MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders);
 /* Link a created uniform or shader storage buffer to a corresponding named buffer in the program code. */
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name);
