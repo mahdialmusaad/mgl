@@ -158,6 +158,8 @@ typedef enum
 	MGL_SHADER_VERTEX_FRAGILE = 1, MGL_SHADER_VERTEX,
 	/* Fragment shader type. */
 	MGL_SHADER_FRAGMENT_FRAGILE, MGL_SHADER_FRAGMENT,
+	/* Compute shader type. */
+	MGL_SHADER_COMPUTE_FRAGILE, MGL_SHADER_COMPUTE
 } mgl_shadertype;
 typedef enum { MGL_CLEAR_DEPTH = 0x1, MGL_CLEAR_STENCIL = 0x2, MGL_CLEAR_COLOR = 0x4 } mgl_clearbits;
 typedef enum { MGL_DRAW_TRIANGLES, MGL_DRAW_STRIPS, MGL_DRAW_LINES, MGL_DRAW_POINTS } mgl_drawtype;
@@ -166,7 +168,7 @@ typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } m
 typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
 typedef struct { int location; unsigned int type; } mgl_uniform;
-typedef struct { unsigned int id, meta; } mgl_program;
+typedef struct { unsigned int id, meta : 31, compute : 1; } mgl_program;
 typedef struct { unsigned int id, meta; } mgl_texture;
 
 typedef struct {
@@ -195,9 +197,9 @@ typedef struct {
 #define MGL_ERROR_INVALID_FEATURE -2
 /* The data store cannot store multiple buffers of the given type, or you gave a non-vertex buffer when modifying attributes.
    If you are trying to replace an existing index or indirect buffer, this is not supported.
-   You should instead create a different data store with that different buffer. */
+   You can instead create a different data store with that buffer, or delete the existing ones. */
 #define MGL_ERROR_BUFFER_TYPE -3
-/* Program or shader creation failed. This likely means a compilation error. */
+/* Program or shader creation failed. This likely means a compilation error or an invalid shader combination. */
 #define MGL_ERROR_GLSL -4
 /* The given buffer cannot be bound to a program - only a uniform or shader storage buffer. */
 #define MGL_ERROR_PROGRAM_UNBUFFERABLE -5
@@ -207,6 +209,8 @@ typedef struct {
 #define MGL_ERROR_INVALID_UNIFORM -6
 /* The data store's current configuration does not support this type of drawing. */
 #define MGL_ERROR_NOT_DRAWABLE -7
+/* The given program does not have a compute shader. */
+#define MGL_ERROR_NOT_COMPUTABLE -8
 
 /* The operation is valid, but likely not what was intended. */
 #define MGL_ERROR_MAYBE -254
@@ -286,6 +290,9 @@ MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primiti
 MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count, unsigned int instance_offset, unsigned int instance_count, int element_constant);
 /* Draw using the given data store, program, primitive type and indirect command offset and count. */
 MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int cmd_offset, unsigned int cmd_count);
+
+/* Execute a compute shader program with the given work group dimensions. */
+MGL_API void mglCompute(mgl_program program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group);
 
 /* Retrieve specific dimensions of the current frame's pixels as unsigned bytes in the given number of channels (type components). */
 MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format);

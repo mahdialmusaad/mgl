@@ -2543,8 +2543,10 @@ static GLenum mgl_internal_shader_type(mgl_shadertype type)
 	switch ((int)type) {
 		case MGL_SHADER_VERTEX: return GL_VERTEX_SHADER;
 		case MGL_SHADER_FRAGMENT: return GL_FRAGMENT_SHADER;
-		/*case MGL_SHADER_COMPUTE: return GL_COMPUTE_SHADER;*/
-		default: MGL_INVALID_LOG("Invalid shader type %u (expected MGL_SHADER_VERTEX or MGL_SHADER_FRAGMENT)\n", type);
+		case MGL_SHADER_COMPUTE: {
+			return GL_COMPUTE_SHADER;
+		}
+		default: MGL_INVALID_LOG("Invalid shader type %u (expected MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT, MGL_SHADER_COMPUTE, or their fragile variant)\n", type);
 	}
 }
 
@@ -3529,10 +3531,14 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigne
 MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, int nsources)
 {
 	unsigned int fragile = type & 0x1;
-	GLenum stype = mgl_internal_shader_type((mgl_shadertype)(type + fragile));
+	mgl_shadertype basetype = (mgl_shadertype)(type + fragile);
+	GLenum stype;
 	GLint success;
 	GLuint id;
 
+	if (basetype == GL_COMPUTE_SHADER && !mgl.DispatchCompute) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_shader), MGL_ERROR_UNSUPPORTED, "Compute shaders are not supported (%d, needs 43+)\n", mgl.version);
+
+	stype = mgl_internal_shader_type(basetype);
 	if (stype == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_shader);
 
 	id = mgl.CreateShader(stype);
@@ -3545,7 +3551,7 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 	if (!success) {
 		char buffer[2048];
 		mgl.GetShaderInfoLog(id, sizeof buffer, NULL, buffer);
-		MGL_LOG_RETURN((mgl_shader){ MGL_INVALID_ID }, MGL_ERROR_GLSL, "Shader creation error: %s", buffer);
+		MGL_LOG_RETURN(MGL_INVALID_RET(mgl_shader), MGL_ERROR_GLSL, "Shader creation error: %s", buffer);
 	}
 
 	return (mgl_shader){ id, stype, fragile };
@@ -3553,7 +3559,13 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 {
 	GLuint program = mgl.CreateProgram();
+	unsigned int hascompute = 0;
 	GLint success;
+
+	if (mgl.DispatchCompute) {
+		for (int i = 0; i < nshaders; ++i) hascompute |= shaders[i].type == GL_COMPUTE_SHADER;
+		if (hascompute && nshaders != 1) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "A program cannot have a compute shader alongside other shaders (%d shaders given, expected 1 compute only)\n", nshaders);
+	}
 
 	for (int i = 0; i < nshaders; ++i) mgl.AttachShader(program, shaders[i].id);
 	mgl.LinkProgram(program);
@@ -3569,7 +3581,7 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 		MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "Program creation error: %s", buffer);
 	}
 
-	return (mgl_program){ program, 0 };
+	return (mgl_program){ program, 0, hascompute };
 }
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name)
 {
@@ -3787,8 +3799,8 @@ static void mgl_internal_draw_instanced(
 		else if (mgl.VertexAttribLPointer && mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_LONG)) attrib->func = FUNC_LONG;
 		else attrib->func = FUNC_FLOAT;
 
-		if (divisor == 0) noffset = (vertex_offset * attrib->stride)  + (intptr_t)attrib->roffset;
-		else noffset = (int)(instance_offset / divisor) * attrib->stride  + (intptr_t)attrib->roffset;
+		if (divisor == 0) noffset = (vertex_offset * attrib->stride) + (intptr_t)attrib->roffset;
+		else noffset = (int)(instance_offset / divisor) * attrib->stride + (intptr_t)attrib->roffset;
 
 		if (noffset < 0) {
 			mgl_internal_reset_attribs(original, completed_bitfield);
@@ -3906,6 +3918,14 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 	}
 
 	mgl.BindVertexArray(0);
+	mgl.UseProgram(0);
+}
+
+MGL_API void mglCompute(mgl_program program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group)
+{
+	if (!program.compute) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No compute shader in program (PID %u)\n", program.id);
+	mgl.UseProgram(program.id);
+	mgl.DispatchCompute(num_x_group, num_y_group, num_z_group);
 	mgl.UseProgram(0);
 }
 
