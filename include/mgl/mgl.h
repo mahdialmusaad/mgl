@@ -38,8 +38,7 @@ typedef enum {
 	   *A  = alpha value of corresponding value,
 	   CST = constant color set by user (TODO),
 	   1M* = result is (1 - value),
-	   SAT = alpha saturate (min of SRCA and 1-DSTA)
-	*/
+	   SAT = alpha saturate (min of SRCA and 1-DSTA) */
 	MGL_BLEND_OFF, MGL_BLEND_ZERO, MGL_BLEND_ONE,
 	MGL_BLEND_SRCCOL, MGL_BLEND_1MSRCCOL, MGL_BLEND_DSTCOL, MGL_BLEND_1MDSTCOL,
 	MGL_BLEND_SRCA, MGL_BLEND_1MSRCA, MGL_BLEND_DSTA, MGL_BLEND_1MDSTA,
@@ -51,13 +50,13 @@ typedef enum {
 } mgl_state;
 
 typedef enum {
-	/* Byte/char vectors (attribute = int) */
+	/* Byte/char vectors (in shader attribute = int) */
 	MGL_BYTE, MGL_BYTE2, MGL_BYTE3, MGL_BYTE4,
-	/* Unsigned byte/char vectors (attribute = uint) */
+	/* Unsigned byte/char vectors (in shader attribute = uint) */
 	MGL_UBYTE, MGL_UBYTE2, MGL_UBYTE3, MGL_UBYTE4,
-	/* Short vectors (attribute = int) */
+	/* Short vectors (in shader attribute = int) */
 	MGL_SHORT, MGL_SHORT2, MGL_SHORT3, MGL_SHORT4,
-	/* Unsigned short vectors (attribute = uint) */
+	/* Unsigned short vectors (in shader attribute = uint) */
 	MGL_USHORT, MGL_USHORT2, MGL_USHORT3, MGL_USHORT4,
 	/* Integer vectors */
 	MGL_INT, MGL_INT2, MGL_INT3, MGL_INT4,
@@ -266,7 +265,7 @@ MGL_API mgl_datastore mglCreateDataStore(void);
 MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer);
 /* Set or add an attribute to the data store, pointing to data of the given vertex buffer.
    If a matrix type is given, it will enable all adjacent indices required to hold each row of the matrix.
-   For example, adding an MGL_M34 attribute at index 0 will enable indices 0, 1 and 2 - each of which will store a vec4 (stride/offset set accordingly).
+   For example, adding an MGL_MAT3X4 attribute at index 0 will enable indices 0, 1 and 2 - each of which will store a vec4 (stride/offset set accordingly).
    Stride and offset parameters are interpreted as byte offsets.
    This accepts a pointer on purpose and may update the underlying value; this must be maintained afterwards. */
 MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigned int index, mgl_datatype type, size_t stride, size_t offset, unsigned int divisor);
