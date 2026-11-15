@@ -302,9 +302,11 @@ MGL_API void mglDestroyProgram(mgl_program program);
 MGL_API void mglDestroyShader(mgl_shader shader);
 /* Destroy the texture object. */
 MGL_API void mglDestroyTexture(mgl_texture texture);
-/* Destroy the data store object. */
+/* Destroy the data store object.
+   Any buffers used by this data store are not affected. */
 MGL_API void mglDestroyDataStore(mgl_datastore ds);
-/* Destroy the buffer object and unbind from the data store. */
+/* Destroy the buffer object and unbind from the data store.
+   This wil disable any attributes that were enabled using the given buffer. */
 MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds);
 
 #endif

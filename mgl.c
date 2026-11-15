@@ -3944,13 +3944,27 @@ MGL_API void mglDestroyTexture(mgl_texture texture) { mgl.DeleteTextures(1, &(GL
 MGL_API void mglDestroyDataStore(mgl_datastore ds) { mgl.DeleteVertexArrays(1, &(GLuint){ ds.id }); }
 MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds)
 {
-	mgl.BindVertexArray(ds.id);
-	mgl.BindBuffer(buffer.type, 0);
-	mgl.BindVertexArray(0);
+	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER || buffer.type == GL_ARRAY_BUFFER) {
+		unsigned int otherdivisor = 0;
+		mgl.BindVertexArray(ds.id);
+		if (buffer.type == GL_ARRAY_BUFFER) {
+			for (unsigned int i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
+				GLuint linkedvbo;
+				if (!mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED)) continue;
+				linkedvbo = (GLuint)mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
+				otherdivisor |= linkedvbo != buffer.id && mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_DIVISOR);
+				if (linkedvbo == buffer.id) {
+					mgl.VertexAttribDivisor(i, 0);
+					mgl.DisableVertexAttribArray(i);
+				}
+			}
+		} else {
+			mgl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, 0);
+			ds.indexsz = 0;
+		}
+		mgl.BindVertexArray(0);
+		ds.instanced = otherdivisor;
+	} else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) ds.indirect = 0;
+
 	mgl.DeleteBuffers(1, &(GLuint){ buffer.id });
-
-	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER) ds.indexsz = 0;
-	else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) ds.indirect = 0;
-
-	/* TODO: check attributes first  */
 }

@@ -170,9 +170,9 @@ int main(int argc, char **argv)
 	mgl_datastore ds3 = mglCreateDataStore();
 	mgl_buffer vbo3 = mglCreateBuffer(MGL_BUFFER_VERTICES);
 	mglBufferData(vbo3, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglDataStoreAttribute(&ds3, vbo3, 0, MGL_FLOAT2, 0, 0, 0);
 	mgl_buffer ebo3 = mglCreateBuffer(MGL_BUFFER_INDICES_UINT);
 	mglBufferData(ebo3, MGL_USAGE_CONSTANT, inds, sizeof inds);
-	mglDataStoreAttribute(&ds3, vbo3, 0, MGL_FLOAT2, 0, 0, 0);
 
 	mgl_datastore ds4 = mglCreateDataStore();
 	mgl_buffer vbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
