@@ -3559,14 +3559,16 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 }
 MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 {
-	GLuint program = mgl.CreateProgram();
+	GLuint program;
 	unsigned int hascompute = 0;
-	GLint success;
+	GLint success, uniforms;
 
 	if (mgl.DispatchCompute) {
 		for (int i = 0; i < nshaders; ++i) hascompute |= shaders[i].type == GL_COMPUTE_SHADER;
 		if (hascompute && nshaders != 1) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "A program cannot have a compute shader alongside other shaders (%d shaders given, expected 1 compute only)\n", nshaders);
 	}
+
+	program = mgl.CreateProgram();
 
 	for (int i = 0; i < nshaders; ++i) mgl.AttachShader(program, shaders[i].id);
 	mgl.LinkProgram(program);
@@ -3579,10 +3581,13 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 	if (!success) {
 		char buffer[2048];
 		mgl.GetProgramInfoLog(program, sizeof buffer, NULL, buffer);
+		mgl.DeleteProgram(program);
 		MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "Program creation error: %s", buffer);
 	}
 
-	return (mgl_program){ program, 0, hascompute };
+	mgl.GetProgramiv(program, GL_ACTIVE_UNIFORMS, &uniforms);
+
+	return (mgl_program){ program, (unsigned int)uniforms, hascompute };
 }
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name)
 {
@@ -3604,15 +3609,14 @@ MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsign
 
 MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
 {
-	/* TODO: cache uniform count as program metadata, GL_ACTIVE_UNIFORM_MAX_LENGTH */
-	GLenum type = MGL_INVALID_ENUM;
-	GLint nuniforms, location = mgl.GetUniformLocation(program.id, name);
+	GLint location = mgl.GetUniformLocation(program.id, name);
+	GLenum type;
 
 	if (location == -1) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_uniform), MGL_ERROR_INVALID_UNIFORM, "Uniform variable '%s' does not match any uniform in program %u\n", name, program.id);
 
-	mgl.GetProgramiv(program.id, GL_ACTIVE_UNIFORMS, &nuniforms);
+	type = MGL_INVALID_ENUM;
 
-	for (unsigned int i = 0; i < (unsigned int)nuniforms; ++i) {
+	for (unsigned int i = 0; i < program.uniforms; ++i) {
 		char indexname[256];
 		GLint size;
 		mgl.GetActiveUniform(program.id, i, sizeof indexname, NULL, &size, &type, indexname);

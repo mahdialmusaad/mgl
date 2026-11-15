@@ -167,7 +167,7 @@ typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } m
 typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
 typedef struct { int location; unsigned int type; } mgl_uniform;
-typedef struct { unsigned int id, meta : 31, compute : 1; } mgl_program;
+typedef struct { unsigned int id, uniforms : 31, compute : 1; } mgl_program;
 typedef struct { unsigned int id, meta; } mgl_texture;
 
 typedef struct {
