@@ -175,8 +175,7 @@ typedef enum
 typedef enum
 {
 	MGL_CLEAR_DEPTH = 0x1,
-	MGL_CLEAR_STENCIL = 0x2,
-	MGL_CLEAR_COLOR = 0x4
+	MGL_CLEAR_COLOR = 0x2
 } mgl_clearbits;
 
 typedef enum {
@@ -256,8 +255,6 @@ MGL_API void mglTimestamp(unsigned int *lower_bits, unsigned int *higher_bits);
 
 /* Clears specific buffers indicated by a bitfield of mgl_clearbits values. */
 MGL_API void mglClear(unsigned int clearbits);
-/* Clears the stencil buffer with specified value. */
-MGL_API void mglClearStencil(int stencil);
 /* Sets the state of an OpenGL feature. */
 MGL_API void mglFeature(mgl_state state);
 /* Set viewport dimensions and position. */

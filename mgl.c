@@ -2217,7 +2217,6 @@ static GLbitfield mgl_internal_clear_type(unsigned int bits)
 {
 	GLbitfield underlying = 0;
 	if (bits & MGL_CLEAR_DEPTH) { underlying |= GL_DEPTH_BUFFER_BIT; bits -= MGL_CLEAR_DEPTH; }
-	if (bits & MGL_CLEAR_STENCIL) { underlying |= GL_STENCIL_BUFFER_BIT; bits -= MGL_CLEAR_STENCIL; }
 	if (bits & MGL_CLEAR_COLOR) { underlying |= GL_COLOR_BUFFER_BIT; bits -= MGL_CLEAR_COLOR; }
 	if (bits) MGL_INVALID_LOG("Unknown bits in clear bitfield %u\n", bits);
 	else return underlying;
