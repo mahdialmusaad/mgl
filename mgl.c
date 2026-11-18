@@ -2313,6 +2313,18 @@ static GLenum mgl_internal_buffer_type(mgl_buffertype type)
 	}
 }
 
+static GLenum mgl_internal_buffer_fwdctype(unsigned int type)
+{
+	switch (type) {
+		case GL_ARRAY_BUFFER: return GL_ARRAY_BUFFER;
+		case GL_ELEMENT_ARRAY_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
+		case GL_UNIFORM_BUFFER: return GL_UNIFORM_BUFFER;
+		case GL_DRAW_INDIRECT_BUFFER: return mgl.MultiDrawArraysIndirect ? GL_DRAW_INDIRECT_BUFFER : GL_COPY_READ_BUFFER;
+		case GL_SHADER_STORAGE_BUFFER: return mgl.version >= 43 ? GL_SHADER_STORAGE_BUFFER : GL_UNIFORM_BUFFER;
+		default: MGL_INVALID_LOG("Invalid buffer type (fwdc) %u\n", type);
+	}
+}
+
 static unsigned int mgl_internal_buffer_index_id(mgl_buffertype type)
 {
 	switch ((int)type) {
@@ -3393,10 +3405,6 @@ MGL_API void mglClear(unsigned int clearbits)
 	if (underlying & GL_COLOR_BUFFER_BIT) mgl.ClearColor(mgl.clearcol.r, mgl.clearcol.g, mgl.clearcol.b, mgl.clearcol.a);
 	if (underlying != MGL_INVALID_ENUM) mgl.Clear(underlying);
 }
-MGL_API void mglClearStencil(int stencil)
-{
-	mgl.ClearStencil(stencil);
-}
 MGL_API void mglFeature(mgl_state state)
 {
 	if (state == MGL_DEPTH_OFF) mgl.Disable(GL_DEPTH);
@@ -3434,33 +3442,39 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type)
 }
 MGL_API void mglBufferData(mgl_buffer buffer, mgl_usage usage, const void *data, size_t bytes)
 {
-	mgl.BindBuffer(buffer.type, buffer.id);
+	GLenum underlying = mgl_internal_buffer_fwdctype(buffer.type);
+	if (underlying == MGL_INVALID_ENUM) return;
+	mgl.BindBuffer(underlying, buffer.id);
 	/* TODO: more buffer options */
-	if (usage == MGL_USAGE_CONSTANT && mgl.BufferStorage) mgl.BufferStorage(buffer.type, (GLsizeiptr)bytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
-	else mgl.BufferData(buffer.type, (GLsizeiptr)bytes, data, GL_STATIC_DRAW);
-	mgl.BindBuffer(buffer.type, 0);
+	if (usage == MGL_USAGE_CONSTANT && mgl.BufferStorage) mgl.BufferStorage(underlying, (GLsizeiptr)bytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
+	else mgl.BufferData(underlying, (GLsizeiptr)bytes, data, GL_STATIC_DRAW);
+	mgl.BindBuffer(underlying, 0);
 }
 MGL_API void mglBufferDataPartial(mgl_buffer buffer, const void *data, size_t offset, size_t bytes)
 {
-	mgl.BindBuffer(buffer.type, buffer.id);
-	mgl.BufferSubData(buffer.type, (GLintptr)offset, (GLsizeiptr)bytes, data);
-	mgl.BindBuffer(buffer.type, 0);
+	GLenum underlying = mgl_internal_buffer_fwdctype(buffer.type);
+	if (underlying == MGL_INVALID_ENUM) return;
+	mgl.BindBuffer(underlying, buffer.id);
+	mgl.BufferSubData(underlying, (GLintptr)offset, (GLsizeiptr)bytes, data);
+	mgl.BindBuffer(underlying, 0);
 }
 MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access)
 {
 	void *result = NULL;
-	mgl.BindBuffer(buffer.type, buffer.id);
+	GLenum utype = mgl_internal_buffer_fwdctype(buffer.type);
+	if (utype == MGL_INVALID_ENUM) return NULL;
+	mgl.BindBuffer(utype, buffer.id);
 	if (access != MGL_ACCESS_UNMAP) {
-		GLenum underlying = mgl_internal_access_type(access);
-		if (underlying != MGL_INVALID_ENUM) result = mgl.MapBuffer(buffer.type, underlying);
-	} else mgl.UnmapBuffer(buffer.type);
-	mgl.BindBuffer(buffer.type, 0);
+		GLenum uaccess = mgl_internal_access_type(access);
+		if (uaccess != MGL_INVALID_ENUM) result = mgl.MapBuffer(utype, uaccess);
+	} else mgl.UnmapBuffer(utype);
+	mgl.BindBuffer(utype, 0);
 	return result;
 }
 
 MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format)
 {
-	// TODO: non-unsigned byte pixel types
+	/* TODO: non-unsigned byte pixel types */
 	GLuint texture;
 	GLenum color = mgl_internal_color_type(format);
 	if (color == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_texture);
@@ -3625,7 +3639,7 @@ MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsign
 
 	driverloc = mgl.GetUniformBlockIndex(program.id, name);
 	mgl.UniformBlockBinding(program.id, driverloc, binding_point);
-	mgl.BindBufferBase(buffer.type, binding_point, buffer.id);
+	mgl.BindBufferBase(mgl_internal_buffer_fwdctype(buffer.type), binding_point, buffer.id);
 }
 
 MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
