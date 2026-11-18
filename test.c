@@ -55,9 +55,11 @@ int main(int argc, char **argv)
 
 	mglDebug(err);
 
-	mglFeature(MGL_BLEND_1MSRCA);
+	mglColor(MGL_COLOR_BLEND, 1.0f, 1.0f, 0.0f, 1.0f);
+	mglFeature(MGL_BLEND_1MCSTA);
 	mglFeature(MGL_CULL_BACK_CW);
 	mglFeature(MGL_DEPTH_ALWAYS);
+	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);
 
 	const char *vertex_source = "#version 330\n"
 	"layout(location = 0) in vec2 position;"
@@ -85,9 +87,7 @@ int main(int argc, char **argv)
 	"void main(){ gl_Position = vec4(position + ubo_position.xy, 0.0, 1.0); }";
 	const char *fragment_source3 = "#version 330\n"
 	"out vec4 frag;"
-	"uniform sampler2D tex;"
-	"in vec2 coords;"
-	"void main(){ frag = texture(tex, coords); }";
+	"void main(){ frag = vec4(1.0, 0.0, 0.0, 0.5); }";
 
 	mgl_shader vertex = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source, 1);
 	mgl_shader fragment = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source, 1);
@@ -211,7 +211,6 @@ int main(int argc, char **argv)
 		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
 		if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS && !cd) { mglFeature((wire = 1 - wire) ? MGL_POLYGON_LINES : MGL_POLYGON_FILL); cd = 1; }
 		else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_RELEASE) cd = 0;
-		mglClearColor(0.2f, 0.2f, 0.2f, 1.0f);
 		mglClear(MGL_CLEAR_COLOR);
 		mglDraw(ds2, program2, MGL_DRAW_STRIPS, 0, 4);
 		mglSetUniform(program, location, 1, (float[3]){ 1.0f, 1.0f, 1.0f });

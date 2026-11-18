@@ -1418,6 +1418,8 @@ typedef void *GLsync;
 #define GL_ZERO 0
 #define GL_ZERO_TO_ONE 0x935F
 
+typedef struct mgl_rgba { float r, g, b, a; } mgl_rgba;
+
 static struct mgl_pfn_s {
 	void (APICALL *ActiveShaderProgram)(GLuint, GLuint);
 	void (APICALL *ActiveTexture)(GLenum);
@@ -2079,6 +2081,8 @@ static struct mgl_pfn_s {
 
 	void (*user_debug)(int, const char *);
 
+	mgl_rgba blendcst, clearcol;
+
 	int version;
 	int major, minor;
 
@@ -2195,6 +2199,17 @@ static int mgl_internal_value_direct(mgl_valueid type)
 		default:
 			mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid value type %u\n", type);
 			return 0;
+	}
+}
+
+static mgl_rgba *mgl_internal_rgba_value(mgl_coltype type)
+{
+	switch ((int)type) {
+		case MGL_COLOR_CLEAR: return &mgl.clearcol;
+		case MGL_COLOR_BLEND: return &mgl.blendcst;
+		default:
+			mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid color type %u\n", type);
+			return NULL;
 	}
 }
 
@@ -3351,6 +3366,15 @@ MGL_API int mglValue(mgl_valueid id)
 	int result = mgl_internal_value_direct(id);
 	return result;
 }
+MGL_API void mglColor(mgl_coltype coltype, float r, float g, float b, float a)
+{
+	mgl_rgba *cols = mgl_internal_rgba_value(coltype);
+	if (!cols) return;
+	cols->r = r;
+	cols->g = g;
+	cols->b = b;
+	cols->a = a;
+}
 MGL_API void mglTimestamp(unsigned int *lower_bits, unsigned int *higher_bits)
 {
 	GLint64 tsgl;
@@ -3367,11 +3391,8 @@ MGL_API void mglTimestamp(unsigned int *lower_bits, unsigned int *higher_bits)
 MGL_API void mglClear(unsigned int clearbits)
 {
 	GLbitfield underlying = mgl_internal_clear_type(clearbits);
+	if (underlying & GL_COLOR_BUFFER_BIT) mgl.ClearColor(mgl.clearcol.r, mgl.clearcol.g, mgl.clearcol.b, mgl.clearcol.a);
 	if (underlying != MGL_INVALID_ENUM) mgl.Clear(underlying);
-}
-MGL_API void mglClearColor(float r, float g, float b, float a)
-{
-	mgl.ClearColor(r, g, b, a);
 }
 MGL_API void mglClearStencil(int stencil)
 {
@@ -3389,6 +3410,7 @@ MGL_API void mglFeature(mgl_state state)
 	} else if (state >= MGL_BLEND_ZERO && state <= MGL_BLEND_SAT) {
 		mgl.Enable(GL_BLEND);
 		mgl.BlendFunc(GL_SRC_ALPHA, mgl_internal_blend_type(state));
+		if (state >= MGL_BLEND_CST && state <= MGL_BLEND_1MCSTA) mgl.BlendColor(mgl.blendcst.r, mgl.blendcst.g, mgl.blendcst.b, mgl.blendcst.a);
 	} else if (state >= MGL_CULL_NONE_CCW && state <= MGL_CULL_FRONTBACK_CW) {
 		GLenum cullface = mgl_internal_cull_type(state);
 		mgl.FrontFace(mgl_internal_winding_type(state));
@@ -3902,8 +3924,8 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 					ds, program,
 					drawtype, index_type,
 					cmd->first_index * index_size,
-					cmd->base_vertex, cmd->count,
-					cmd->base_instance, cmd->instance_count
+					cmd->element_constant, cmd->count,
+					cmd->instance_offset, cmd->instance_count
 				);
 			}
 		} else {
@@ -3913,7 +3935,7 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 					ds, program,
 					drawtype, 0,
 					cmd->first, 0, cmd->count,
-					cmd->base_instance, cmd->instance_count
+					cmd->instance_offset, cmd->instance_count
 				);
 			}
 		}

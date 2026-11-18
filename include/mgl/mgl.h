@@ -36,7 +36,7 @@ typedef enum {
 	   SRC = fragment output,
 	   DST = current color buffer value,
 	   *A  = alpha value of corresponding value,
-	   CST = constant color set by user (TODO),
+	   CST = constant color set by user,
 	   1M* = result is (1 - value),
 	   SAT = alpha saturate (min of SRCA and 1-DSTA) */
 	MGL_BLEND_OFF, MGL_BLEND_ZERO, MGL_BLEND_ONE,
@@ -105,7 +105,6 @@ typedef enum {
 	/* Name of first supported extension.
 	   For other extensions, query MGL_STRING_EXTENSION0 + i. */
 	MGL_STRING_EXTENSION0
-
 } mgl_stringid;
 
 typedef enum {
@@ -141,16 +140,28 @@ typedef enum {
 	   Must be bound to a program, corresponding to a named uniform in it. */
 	MGL_BUFFER_UNIFORM,
 	/* Indirect buffer data.
-	   Specifies multiple instanced draw commands to be executed at once.
-	   4.0+ context required. */
+	   Specifies multiple instanced draw commands to be executed at once. */
 	MGL_BUFFER_DRAW_INDIRECT,
 	/* Shader storage buffer data (SSBO).
-	   Similar to uniform buffer data, but typically has a larger capacity.
-	   4.3+ context required. */
+	   Similar to uniform buffer data, but typically has a larger capacity. */
 	MGL_BUFFER_SHADER_STORAGE
 } mgl_buffertype;
 
-typedef enum { MGL_ACCESS_READ, MGL_ACCESS_WRITE, MGL_ACCESS_READWRITE, MGL_ACCESS_UNMAP } mgl_access;
+typedef enum {
+	/* Set the color to clear the framebuffer with, applied using mglClear with the MGL_CLEAR_COLOR bit. */
+	MGL_COLOR_CLEAR,
+	/* Set blend constant value (CST). */
+	MGL_COLOR_BLEND
+} mgl_coltype;
+
+typedef enum
+{
+	MGL_ACCESS_READ,
+	MGL_ACCESS_WRITE,
+	MGL_ACCESS_READWRITE,
+	MGL_ACCESS_UNMAP
+} mgl_access;
+
 typedef enum
 {
 	/* Vertex shader type. */
@@ -160,32 +171,44 @@ typedef enum
 	/* Compute shader type. */
 	MGL_SHADER_COMPUTE_FRAGILE, MGL_SHADER_COMPUTE
 } mgl_shadertype;
-typedef enum { MGL_CLEAR_DEPTH = 0x1, MGL_CLEAR_STENCIL = 0x2, MGL_CLEAR_COLOR = 0x4 } mgl_clearbits;
-typedef enum { MGL_DRAW_TRIANGLES, MGL_DRAW_STRIPS, MGL_DRAW_LINES, MGL_DRAW_POINTS } mgl_drawtype;
+
+typedef enum
+{
+	MGL_CLEAR_DEPTH = 0x1,
+	MGL_CLEAR_STENCIL = 0x2,
+	MGL_CLEAR_COLOR = 0x4
+} mgl_clearbits;
+
+typedef enum {
+	MGL_DRAW_TRIANGLES,
+	MGL_DRAW_STRIPS,
+	MGL_DRAW_LINES,
+	MGL_DRAW_POINTS
+} mgl_drawtype;
 
 typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } mgl_datastore;
+typedef struct { unsigned int id, uniforms : 31, compute : 1; } mgl_program;
 typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
 typedef struct { int location; unsigned int type; } mgl_uniform;
-typedef struct { unsigned int id, uniforms : 31, compute : 1; } mgl_program;
 typedef struct { unsigned int id, meta; } mgl_texture;
 
 typedef struct {
 	unsigned int count;
 	unsigned int instance_count;
 	unsigned int first;
-	unsigned int base_instance;
+	unsigned int instance_offset;
 } mgl_indirect_cmd;
 
 typedef struct {
 	unsigned int count;
 	unsigned int instance_count;
 	unsigned int first_index;
-	int base_vertex;
-	unsigned int base_instance;
+	int element_constant;
+	unsigned int instance_offset;
 } mgl_indexed_indirect_cmd;
 
-/* On failure to create a buffer, texture, data store, shader or program, the ID (first member) will be this value. */
+/* On failure to create an object, the ID/location (first member) will be this value. */
 #define MGL_INVALID_ID 0
 
 /* Error values. */
@@ -225,17 +248,17 @@ MGL_API void mglDebug(void (*debug_callback)(int id, const char *name));
 MGL_API const char *mglString(unsigned int id);
 /* Retrieve a value relating to the context's capabilities. */
 MGL_API int mglValue(mgl_valueid id);
+/* Sets a color value for a specific purpose. */
+MGL_API void mglColor(mgl_coltype coltype, float r, float g, float b, float a);
 /* Get the current GL timestamp in nanoseconds as a split 64-bit number.
-   Any pointer may be NULL if you do not want those bits. */
+   Either pointer may be NULL. */
 MGL_API void mglTimestamp(unsigned int *lower_bits, unsigned int *higher_bits);
 
 /* Clears specific buffers indicated by a bitfield of mgl_clearbits values. */
 MGL_API void mglClear(unsigned int clearbits);
-/* Clears color buffer with specified color. */
-MGL_API void mglClearColor(float r, float g, float b, float a);
-/* Clears stencil buffer with specified value. */
+/* Clears the stencil buffer with specified value. */
 MGL_API void mglClearStencil(int stencil);
-/* Sets state of OpenGL feature. */
+/* Sets the state of an OpenGL feature. */
 MGL_API void mglFeature(mgl_state state);
 /* Set viewport dimensions and position. */
 MGL_API void mglViewport(int x, int y, int width, int height);
@@ -293,7 +316,7 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 /* Execute a compute shader program with the given work group dimensions. */
 MGL_API void mglCompute(mgl_program program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group);
 
-/* Retrieve specific dimensions of the current frame's pixels as unsigned bytes in the given number of channels (type components). */
+/* Retrieve specific dimensions of the current frame's pixels in a given format. */
 MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format);
 
 /* Destroy the program object. */
