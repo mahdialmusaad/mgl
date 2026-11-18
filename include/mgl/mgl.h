@@ -89,7 +89,9 @@ typedef enum {
 } mgl_color;
 
 typedef enum {
+	/* Buffer data is not expected to change. */
 	MGL_USAGE_CONSTANT,
+	/* Buffer data is expected to change, likely every frame. */
 	MGL_USAGE_DYNAMIC
 } mgl_usage;
 
@@ -143,7 +145,8 @@ typedef enum {
 	   Specifies multiple instanced draw commands to be executed at once. */
 	MGL_BUFFER_DRAW_INDIRECT,
 	/* Shader storage buffer data (SSBO).
-	   Similar to uniform buffer data, but typically has a larger capacity. */
+	   Similar to uniform buffer data, but typically has a larger capacity.
+	   If not supported, a UBO is created instead. */
 	MGL_BUFFER_SHADER_STORAGE
 } mgl_buffertype;
 
@@ -154,16 +157,14 @@ typedef enum {
 	MGL_COLOR_BLEND
 } mgl_coltype;
 
-typedef enum
-{
+typedef enum {
 	MGL_ACCESS_READ,
 	MGL_ACCESS_WRITE,
 	MGL_ACCESS_READWRITE,
 	MGL_ACCESS_UNMAP
 } mgl_access;
 
-typedef enum
-{
+typedef enum {
 	/* Vertex shader type. */
 	MGL_SHADER_VERTEX_FRAGILE = 1, MGL_SHADER_VERTEX,
 	/* Fragment shader type. */
@@ -172,8 +173,7 @@ typedef enum
 	MGL_SHADER_COMPUTE_FRAGILE, MGL_SHADER_COMPUTE
 } mgl_shadertype;
 
-typedef enum
-{
+typedef enum {
 	MGL_CLEAR_DEPTH = 0x1,
 	MGL_CLEAR_COLOR = 0x2
 } mgl_clearbits;

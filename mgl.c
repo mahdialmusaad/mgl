@@ -2320,9 +2320,50 @@ static GLenum mgl_internal_buffer_fwdctype(unsigned int type)
 		case GL_ELEMENT_ARRAY_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
 		case GL_UNIFORM_BUFFER: return GL_UNIFORM_BUFFER;
 		case GL_DRAW_INDIRECT_BUFFER: return mgl.MultiDrawArraysIndirect ? GL_DRAW_INDIRECT_BUFFER : GL_COPY_READ_BUFFER;
-		case GL_SHADER_STORAGE_BUFFER: return mgl.version >= 43 ? GL_SHADER_STORAGE_BUFFER : GL_UNIFORM_BUFFER;
+		case GL_SHADER_STORAGE_BUFFER: return mgl.ShaderStorageBlockBinding ? GL_SHADER_STORAGE_BUFFER : GL_UNIFORM_BUFFER;
 		default: MGL_INVALID_LOG("Invalid buffer type (fwdc) %u\n", type);
 	}
+}
+
+static GLenum mgl_internal_buffer_hint(unsigned int type, mgl_usage usage)
+{
+	enum {
+		MGL_HINT_DRAW = 0,
+		MGL_HINT_READ = 1,
+		MGL_HINT_COPY = 2
+	} nature;
+
+	enum {
+		MGL_HINT_STREAM = GL_STREAM_DRAW,
+		MGL_HINT_STATIC = GL_STATIC_DRAW,
+		MGL_HINT_DYNAMIC = GL_DYNAMIC_DRAW
+	} frequency;
+
+	switch ((int)usage) {
+		case MGL_USAGE_CONSTANT:
+			frequency = MGL_HINT_STATIC;
+			break;
+		case MGL_USAGE_DYNAMIC:
+			frequency = MGL_HINT_DYNAMIC;
+			break;
+		default: MGL_INVALID_LOG("Invalid buffer usage (hint) %u\n", usage);
+	}
+
+	switch ((int)type) {
+		case GL_ARRAY_BUFFER: FALLTHROUGH
+		case GL_ELEMENT_ARRAY_BUFFER: FALLTHROUGH
+		case GL_UNIFORM_BUFFER: FALLTHROUGH
+		case GL_DRAW_INDIRECT_BUFFER:
+			nature = MGL_HINT_DRAW;
+			break;
+		case GL_SHADER_STORAGE_BUFFER: FALLTHROUGH
+		case GL_COPY_READ_BUFFER:
+			nature = MGL_HINT_COPY;
+			break;
+		default: MGL_INVALID_LOG("Invalid buffer type (hint) %u\n", type);
+	}
+
+	return (GLenum)((int)nature + (int)frequency);
 }
 
 static unsigned int mgl_internal_buffer_index_id(mgl_buffertype type)
@@ -3442,12 +3483,14 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type)
 }
 MGL_API void mglBufferData(mgl_buffer buffer, mgl_usage usage, const void *data, size_t bytes)
 {
-	GLenum underlying = mgl_internal_buffer_fwdctype(buffer.type);
+	GLenum underlying = mgl_internal_buffer_fwdctype(buffer.type), hint;
 	if (underlying == MGL_INVALID_ENUM) return;
+	hint = mgl_internal_buffer_hint(buffer.type, usage);
+	if (hint == MGL_INVALID_ENUM) return;
 	mgl.BindBuffer(underlying, buffer.id);
 	/* TODO: more buffer options */
 	if (usage == MGL_USAGE_CONSTANT && mgl.BufferStorage) mgl.BufferStorage(underlying, (GLsizeiptr)bytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
-	else mgl.BufferData(underlying, (GLsizeiptr)bytes, data, GL_STATIC_DRAW);
+	else mgl.BufferData(underlying, (GLsizeiptr)bytes, data, hint);
 	mgl.BindBuffer(underlying, 0);
 }
 MGL_API void mglBufferDataPartial(mgl_buffer buffer, const void *data, size_t offset, size_t bytes)
@@ -3627,8 +3670,17 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name)
 {
 	GLuint driverloc;
+	GLenum underlying = mgl_internal_buffer_fwdctype(buffer.type);
 
-	if (buffer.type != GL_UNIFORM_BUFFER && buffer.type != GL_SHADER_STORAGE_BUFFER) {
+	if (underlying == GL_UNIFORM_BUFFER) {
+		driverloc = mgl.GetUniformBlockIndex(program.id, name);
+		if (driverloc == GL_INVALID_INDEX) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Uniform block name '%s' does not match any uniform block in program %u (bind %u, max %d)\n", name, program.id, binding_point, mgl.max_ubos);
+		mgl.UniformBlockBinding(program.id, driverloc, binding_point);
+	} else if (underlying == GL_SHADER_STORAGE_BUFFER) {
+		driverloc = mgl.GetProgramResourceIndex(program.id, GL_SHADER_STORAGE_BLOCK, name);
+		if (driverloc == GL_INVALID_INDEX) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Shader storage block name '%s' does not match any shader storage block in program %u (bind %u, max %d)\n", name, program.id, binding_point, mgl.max_ssbos);
+		mgl.ShaderStorageBlockBinding(program.id, driverloc, binding_point);
+	} else {
 		MGL_LOG_RETURN(
 			MGL_EMPTY,
 			MGL_ERROR_PROGRAM_UNBUFFERABLE,
@@ -3637,9 +3689,7 @@ MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsign
 		);
 	}
 
-	driverloc = mgl.GetUniformBlockIndex(program.id, name);
-	mgl.UniformBlockBinding(program.id, driverloc, binding_point);
-	mgl.BindBufferBase(mgl_internal_buffer_fwdctype(buffer.type), binding_point, buffer.id);
+	mgl.BindBufferBase(underlying, binding_point, buffer.id);
 }
 
 MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
@@ -3647,7 +3697,7 @@ MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
 	GLint location = mgl.GetUniformLocation(program.id, name);
 	GLenum type;
 
-	if (location == -1) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_uniform), MGL_ERROR_INVALID_UNIFORM, "Uniform variable '%s' does not match any uniform in program %u\n", name, program.id);
+	if (location == -1) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_uniform), MGL_ERROR_INVALID_UNIFORM, "Uniform variable name '%s' does not match any variable in program %u\n", name, program.id);
 
 	type = MGL_INVALID_ENUM;
 
