@@ -79,7 +79,7 @@ int main(int argc, char **argv)
 	"out vec4 frag;"
 	"uniform sampler2D tex;"
 	"in vec2 coords;"
-	"void main(){ frag = texture(tex, coords); }";
+	"void main(){ frag = texture(tex, coords * 2.0); }";
 
 	const char *vertex_source3 = "#version 330\n"
 	"layout(location = 0) in vec2 position;"
@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 		255, 255, 255
 	};
 
-	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_RGB_U8);
+	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_TEXTURE_SCALING_NEAREST | MGL_TEXTURE_WRAP_REPEAT, MGL_RGB_U8);
 	mglBindTexture(tex, texbinding);
 	mglSetUniform(program2, samplerloc, 1, &texbinding);
 

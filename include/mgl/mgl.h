@@ -163,8 +163,29 @@ typedef enum {
 	/* Set the color to clear the framebuffer with, applied using mglClear with the MGL_CLEAR_COLOR bit. */
 	MGL_COLOR_CLEAR,
 	/* Set blend constant value (CST). */
-	MGL_COLOR_BLEND
+	MGL_COLOR_BLEND,
+	/* Set texture wrap border color for MGL_TEXTURE_WRAP_BORDER. */
+	MGL_COLOR_TEXBORDER
 } mgl_coltype;
+
+typedef enum {
+	/* Texture wrap mode bit where OOB texture coordinates are clamped to the edges. */
+	MGL_TEXTURE_WRAP_CLAMP = 0x1,
+	/* Texture wrap mode bit where OOB texture coordinates are given a border color,
+	   specified via mglColor with MGL_COLOR_TEXBORDER per call. */
+	MGL_TEXTURE_WRAP_BORDER = 0x2,
+	/* Texture wrap mode bit where OOB texture coordinates will wrap around to repeat the texture.
+	   This is the default wrap mode. */
+	MGL_TEXTURE_WRAP_REPEAT = 0x4,
+
+	/* Texture magnification and minification filter bit where the final color is
+	   the weighted average of nearby pixels.
+	   This is the default scaling mode. */
+	MGL_TEXTURE_SCALING_LINEAR = 0x1000,
+	/* Texture magnification and minification filter bit where the final color is
+	   the closest pixel. Faster than linear, but produces a sharp/blocky output. */
+	MGL_TEXTURE_SCALING_NEAREST = 0x2000
+} mgl_texfilter;
 
 typedef enum {
 	/* Map the buffer for reading only. */
@@ -297,8 +318,9 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access);
 /* Create a texture with the specified information.
    Internally, (e.g. when accessing in a shader), the texture is stored in an RGBA format;
    the green and blue components will be 0.0 and 1.0 for alpha if the source does not provide it.
-   TODO: wrap and mag parameters */
-MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format);
+   The 'filters' parameter is made up of two parts: a bit describing the wrap mode and another describing the scaling mode.
+   You may not have multiple bits for each part. Defaults are used if a part has no corresponding bit set. */
+MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, unsigned int filters, mgl_color format);
 /* Bind the given texture to a specific texture unit.
    To use this in shader code, use mglSetUniform with a sampler variable with a signed integer set to the same texture binding/unit. */
 MGL_API void mglBindTexture(mgl_texture texture, unsigned int binding);

@@ -2081,7 +2081,7 @@ static struct mgl_pfn_s {
 
 	void (*user_debug)(int, const char *);
 
-	mgl_rgba blendcst, clearcol;
+	mgl_rgba blendcst, clearcol, texbordercol;
 
 	int version;
 	int major, minor;
@@ -2207,6 +2207,7 @@ static mgl_rgba *mgl_internal_rgba_value(mgl_coltype type)
 	switch ((int)type) {
 		case MGL_COLOR_CLEAR: return &mgl.clearcol;
 		case MGL_COLOR_BLEND: return &mgl.blendcst;
+		case MGL_COLOR_TEXBORDER: return &mgl.texbordercol;
 		default:
 			mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid color type %u\n", type);
 			return NULL;
@@ -2502,6 +2503,27 @@ static GLenum mgl_internal_color_type(mgl_color type)
 		case MGL_BGRA_FLOAT: return GL_FLOAT;
 		default: MGL_INVALID_LOG("Invalid color type %u\n", type);
 	}
+}
+
+static GLint mgl_internal_texture_wrap(unsigned int bits)
+{
+	GLint chosen = GL_REPEAT;
+	unsigned int nbits = 0;
+	if (bits & MGL_TEXTURE_WRAP_CLAMP) { chosen = GL_CLAMP_TO_EDGE; ++nbits; }
+	if (bits & MGL_TEXTURE_WRAP_BORDER) { chosen = GL_CLAMP_TO_BORDER; ++nbits; }
+	if (bits & MGL_TEXTURE_WRAP_REPEAT) { chosen = GL_REPEAT; ++nbits; }
+	if (nbits != 1) MGL_INVALID_LOG("Invalid texture wrap bits %u (%u set)\n", bits, nbits);
+	return chosen;
+}
+
+static GLint mgl_internal_texture_scaling(unsigned int bits)
+{
+	GLint chosen = GL_LINEAR;
+	unsigned int nbits = 0;
+	if (bits & MGL_TEXTURE_SCALING_LINEAR) { chosen = GL_LINEAR; ++nbits; }
+	if (bits & MGL_TEXTURE_SCALING_NEAREST) { chosen = GL_NEAREST; ++nbits; }
+	if (nbits != 1) MGL_INVALID_LOG("Invalid texture scaling bits %u (%u set)\n", bits, nbits);
+	return chosen;
 }
 
 static GLenum mgl_internal_data_type(mgl_datatype type)
@@ -3602,20 +3624,24 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access)
 	return result;
 }
 
-MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format)
+MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, unsigned int filters, mgl_color format)
 {
 	GLuint texture;
 	GLenum utype = mgl_internal_color_type(format);
 	GLenum uformat = mgl_internal_color_format(format);
+	GLint wrap = mgl_internal_texture_wrap(filters);
+	GLint scaling = mgl_internal_texture_scaling(filters);
 	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_texture);
 
 	mgl.GenTextures(1, &texture);
 	mgl.BindTexture(GL_TEXTURE_2D, texture);
 
-	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, GL_REPEAT);
-	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, GL_REPEAT);
-	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
-	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
+	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
+	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
+	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_NEAREST);
+	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, scaling);
+
+	if (wrap == GL_CLAMP_TO_BORDER) mgl.TexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, (float[4]){ mgl.texbordercol.r, mgl.texbordercol.g, mgl.texbordercol.b, mgl.texbordercol.a });
 
 	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, uformat, utype, pixels);
 	mgl.GenerateMipmap(GL_TEXTURE_2D);
