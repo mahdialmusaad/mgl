@@ -3450,6 +3450,8 @@ MGL_API void mglFeature(mgl_state state)
 {
 	if (state == MGL_DEPTH_OFF) mgl.Disable(GL_DEPTH);
 	else if (state == MGL_BLEND_OFF) mgl.Disable(GL_BLEND);
+	else if (state == MGL_POINTSIZE_ON) mgl.Enable(GL_PROGRAM_POINT_SIZE);
+	else if (state == MGL_POINTSIZE_OFF) mgl.Disable(GL_PROGRAM_POINT_SIZE);
 	else if (state >= MGL_POLYGON_POINTS && state <= MGL_POLYGON_FILL) {
 		mgl.PolygonMode(GL_FRONT_AND_BACK, mgl_internal_polygon_type(state));
 	} else if (state >= MGL_DEPTH_NEVER && state <= MGL_DEPTH_ALWAYS) {
@@ -3517,7 +3519,6 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access)
 
 MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format)
 {
-	/* TODO: non-unsigned byte pixel types */
 	GLuint texture;
 	GLenum color = mgl_internal_color_type(format);
 	if (color == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_texture);

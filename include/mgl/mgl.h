@@ -36,7 +36,7 @@ typedef enum {
 	   SRC = fragment output,
 	   DST = current color buffer value,
 	   *A  = alpha value of corresponding value,
-	   CST = constant color set by user,
+	   CST = constant color set via mglColor with MGL_COLOR_BLEND,
 	   1M* = result is (1 - value),
 	   SAT = alpha saturate (min of SRCA and 1-DSTA) */
 	MGL_BLEND_OFF, MGL_BLEND_ZERO, MGL_BLEND_ONE,
@@ -46,7 +46,9 @@ typedef enum {
 	/* Culling and winding order values. BACK, FRONT and FRONTBACK are what faces can be culled (NONE for no culling); CW and CCW determine which vertex winding order specifies the front face.
 	   By default, BACK faces are culled and CCW winding order is used (MGL_CULL_BACK_CCW). */
 	MGL_CULL_NONE_CCW, MGL_CULL_BACK_CCW, MGL_CULL_FRONT_CCW, MGL_CULL_FRONTBACK_CCW,
-	MGL_CULL_NONE_CW, MGL_CULL_BACK_CW, MGL_CULL_FRONT_CW, MGL_CULL_FRONTBACK_CW
+	MGL_CULL_NONE_CW, MGL_CULL_BACK_CW, MGL_CULL_FRONT_CW, MGL_CULL_FRONTBACK_CW,
+	/* Whether a drawn point's size can be modified in shaders via gl_PointSize. Disabled by default. */
+	MGL_POINTSIZE_OFF, MGL_POINTSIZE_ON
 } mgl_state;
 
 typedef enum {
@@ -158,9 +160,13 @@ typedef enum {
 } mgl_coltype;
 
 typedef enum {
+	/* Map the buffer for reading only. */
 	MGL_ACCESS_READ,
+	/* Map the buffer for writing only. */
 	MGL_ACCESS_WRITE,
+	/* Map the buffer for both reading and writing. */
 	MGL_ACCESS_READWRITE,
+	/* Unmap the buffer (NULL is returned). */
 	MGL_ACCESS_UNMAP
 } mgl_access;
 
@@ -174,14 +180,20 @@ typedef enum {
 } mgl_shadertype;
 
 typedef enum {
+	/* Bit to clear the depth buffer. */
 	MGL_CLEAR_DEPTH = 0x1,
+	/* Bit to clear the color set via mglColor with MGL_COLOR_CLEAR to the framebuffer. */
 	MGL_CLEAR_COLOR = 0x2
 } mgl_clearbits;
 
 typedef enum {
+	/* Every three vertices/indices is treated as an individual triangle. */
 	MGL_DRAW_TRIANGLES,
+	/* After the first triangle, every vertex/index creates a triangle built off the last two vertices/indices. */
 	MGL_DRAW_STRIPS,
+	/* Connect each vertex/index pair with a line. */
 	MGL_DRAW_LINES,
+	/* Create a point for each vertex/index. */
 	MGL_DRAW_POINTS
 } mgl_drawtype;
 
@@ -192,6 +204,8 @@ typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
 typedef struct { int location; unsigned int type; } mgl_uniform;
 typedef struct { unsigned int id, meta; } mgl_texture;
 
+/* An indirect draw command typically stored as a list in a
+   MGL_BUFFER_DRAW_INDIRECT buffer for drawing via mglDrawIndirect. */
 typedef struct {
 	unsigned int count;
 	unsigned int instance_count;
@@ -199,6 +213,8 @@ typedef struct {
 	unsigned int instance_offset;
 } mgl_indirect_cmd;
 
+/* An indexed indirect draw command typically stored as a list in a
+   MGL_BUFFER_DRAW_INDIRECT buffer for drawing via mglDrawIndirect. */
 typedef struct {
 	unsigned int count;
 	unsigned int instance_count;
