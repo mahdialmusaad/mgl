@@ -82,12 +82,19 @@ typedef enum {
 	MGL_DMAT4X2, MGL_DMAT4X3, MGL_DMAT4X4,
 } mgl_datatype;
 
-/* TODO: non-uchar color components */
 typedef enum {
-	MGL_RED,
-	MGL_RG,
-	MGL_RGB, MGL_BGR,
-	MGL_RGBA, MGL_BGRA
+	/* Red/single component image formats of varying underlying types. */
+	MGL_RED_U8, MGL_RED_I8, MGL_RED_U16, MGL_RED_I16, MGL_RED_U32, MGL_RED_I32, MGL_RED_FLOAT,
+	/* Red-green/two-component image formats of varying underlying types. */
+	MGL_RG_U8, MGL_RG_I8, MGL_RG_U16, MGL_RG_I16, MGL_RG_U32, MGL_RG_I32, MGL_RG_FLOAT,
+	/* RGB image formats of varying underlying types. */
+	MGL_RGB_U8, MGL_RGB_I8, MGL_RGB_U16, MGL_RGB_I16, MGL_RGB_U32, MGL_RGB_I32, MGL_RGB_FLOAT,
+	/* BGR image formats of varying underlying types. */
+	MGL_BGR_U8, MGL_BGR_I8, MGL_BGR_U16, MGL_BGR_I16, MGL_BGR_U32, MGL_BGR_I32, MGL_BGR_FLOAT,
+	/* RGBA image formats of varying underlying types. */
+	MGL_RGBA_U8, MGL_RGBA_I8, MGL_RGBA_U16, MGL_RGBA_I16, MGL_RGBA_U32, MGL_RGBA_I32, MGL_RGBA_FLOAT,
+	/* BGRA image formats of varying underlying types. */
+	MGL_BGRA_U8, MGL_BGRA_I8, MGL_BGRA_U16, MGL_BGRA_I16, MGL_BGRA_U32, MGL_BGRA_I32, MGL_BGRA_FLOAT
 } mgl_color;
 
 typedef enum {
@@ -287,7 +294,10 @@ MGL_API void mglBufferDataPartial(mgl_buffer buffer, const void *data, size_t of
 /* Map or unmap the buffer contents into memory. */
 MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access);
 
-/* Create a texture with the specified information. TODO: wrap and mag parameters */
+/* Create a texture with the specified information.
+   Internally, (e.g. when accessing in a shader), the texture is stored in an RGBA format;
+   the green and blue components will be 0.0 and 1.0 for alpha if the source does not provide it.
+   TODO: wrap and mag parameters */
 MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format);
 /* Bind the given texture to a specific texture unit.
    To use this in shader code, use mglSetUniform with a sampler variable with a signed integer set to the same texture binding/unit. */

@@ -2406,15 +2406,100 @@ static GLenum mgl_internal_access_type(mgl_access type)
 	}
 }
 
+static GLenum mgl_internal_color_format(mgl_color type)
+{
+	switch ((int)type) {
+		case MGL_RED_U8: FALLTHROUGH
+		case MGL_RED_I8: FALLTHROUGH
+		case MGL_RED_U16: FALLTHROUGH
+		case MGL_RED_I16: FALLTHROUGH
+		case MGL_RED_U32: FALLTHROUGH
+		case MGL_RED_I32: FALLTHROUGH
+		case MGL_RED_FLOAT: return GL_RED;
+		case MGL_RG_U8: FALLTHROUGH
+		case MGL_RG_I8: FALLTHROUGH
+		case MGL_RG_U16: FALLTHROUGH
+		case MGL_RG_I16: FALLTHROUGH
+		case MGL_RG_U32: FALLTHROUGH
+		case MGL_RG_I32: FALLTHROUGH
+		case MGL_RG_FLOAT: return GL_RG;
+		case MGL_RGB_U8: FALLTHROUGH
+		case MGL_RGB_I8: FALLTHROUGH
+		case MGL_RGB_U16: FALLTHROUGH
+		case MGL_RGB_I16: FALLTHROUGH
+		case MGL_RGB_U32: FALLTHROUGH
+		case MGL_RGB_I32: FALLTHROUGH
+		case MGL_RGB_FLOAT: return GL_RGB;
+		case MGL_BGR_U8: FALLTHROUGH
+		case MGL_BGR_I8: FALLTHROUGH
+		case MGL_BGR_U16: FALLTHROUGH
+		case MGL_BGR_I16: FALLTHROUGH
+		case MGL_BGR_U32: FALLTHROUGH
+		case MGL_BGR_I32: FALLTHROUGH
+		case MGL_BGR_FLOAT: return GL_BGR;
+		case MGL_RGBA_U8: FALLTHROUGH
+		case MGL_RGBA_I8: FALLTHROUGH
+		case MGL_RGBA_U16: FALLTHROUGH
+		case MGL_RGBA_I16: FALLTHROUGH
+		case MGL_RGBA_U32: FALLTHROUGH
+		case MGL_RGBA_I32: FALLTHROUGH
+		case MGL_RGBA_FLOAT: return GL_RGBA;
+		case MGL_BGRA_U8: FALLTHROUGH
+		case MGL_BGRA_I8: FALLTHROUGH
+		case MGL_BGRA_U16: FALLTHROUGH
+		case MGL_BGRA_I16: FALLTHROUGH
+		case MGL_BGRA_U32: FALLTHROUGH
+		case MGL_BGRA_I32: FALLTHROUGH
+		case MGL_BGRA_FLOAT: return GL_BGRA;
+		default: MGL_INVALID_LOG("Invalid color format %u\n", type);
+	}
+}
+
 static GLenum mgl_internal_color_type(mgl_color type)
 {
 	switch ((int)type) {
-		case MGL_RED: return GL_RED;
-		case MGL_RG: return GL_RG;
-		case MGL_RGB: return GL_RGB;
-		case MGL_BGR: return GL_BGR;
-		case MGL_RGBA: return GL_RGBA;
-		case MGL_BGRA: return GL_BGRA;
+		case MGL_RED_U8: FALLTHROUGH
+		case MGL_RG_U8: FALLTHROUGH
+		case MGL_RGB_U8: FALLTHROUGH
+		case MGL_BGR_U8: FALLTHROUGH
+		case MGL_RGBA_U8: FALLTHROUGH
+		case MGL_BGRA_U8: return GL_UNSIGNED_BYTE;
+		case MGL_RED_I8: FALLTHROUGH
+		case MGL_RG_I8: FALLTHROUGH
+		case MGL_RGB_I8: FALLTHROUGH
+		case MGL_BGR_I8: FALLTHROUGH
+		case MGL_RGBA_I8: FALLTHROUGH
+		case MGL_BGRA_I8: return GL_BYTE;
+		case MGL_RED_U16: FALLTHROUGH
+		case MGL_RG_U16: FALLTHROUGH
+		case MGL_RGB_U16: FALLTHROUGH
+		case MGL_BGR_U16: FALLTHROUGH
+		case MGL_RGBA_U16: FALLTHROUGH
+		case MGL_BGRA_U16:  return GL_UNSIGNED_SHORT;
+		case MGL_RED_I16: FALLTHROUGH
+		case MGL_RG_I16: FALLTHROUGH
+		case MGL_RGB_I16: FALLTHROUGH
+		case MGL_BGR_I16: FALLTHROUGH
+		case MGL_RGBA_I16: FALLTHROUGH
+		case MGL_BGRA_I16: return GL_SHORT;
+		case MGL_RED_U32: FALLTHROUGH
+		case MGL_RG_U32: FALLTHROUGH
+		case MGL_RGB_U32: FALLTHROUGH
+		case MGL_BGR_U32: FALLTHROUGH
+		case MGL_RGBA_U32: FALLTHROUGH
+		case MGL_BGRA_U32: return GL_UNSIGNED_INT;
+		case MGL_RED_I32: FALLTHROUGH
+		case MGL_RG_I32: FALLTHROUGH
+		case MGL_RGB_I32: FALLTHROUGH
+		case MGL_BGR_I32: FALLTHROUGH
+		case MGL_RGBA_I32: FALLTHROUGH
+		case MGL_BGRA_I32: return GL_INT;
+		case MGL_RED_FLOAT: FALLTHROUGH
+		case MGL_RG_FLOAT: FALLTHROUGH
+		case MGL_RGB_FLOAT: FALLTHROUGH
+		case MGL_BGR_FLOAT: FALLTHROUGH
+		case MGL_RGBA_FLOAT: FALLTHROUGH
+		case MGL_BGRA_FLOAT: return GL_FLOAT;
 		default: MGL_INVALID_LOG("Invalid color type %u\n", type);
 	}
 }
@@ -3520,8 +3605,9 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access)
 MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, mgl_color format)
 {
 	GLuint texture;
-	GLenum color = mgl_internal_color_type(format);
-	if (color == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_texture);
+	GLenum utype = mgl_internal_color_type(format);
+	GLenum uformat = mgl_internal_color_format(format);
+	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_texture);
 
 	mgl.GenTextures(1, &texture);
 	mgl.BindTexture(GL_TEXTURE_2D, texture);
@@ -3531,7 +3617,7 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_NEAREST_MIPMAP_NEAREST);
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_NEAREST);
 
-	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, color, GL_UNSIGNED_BYTE, pixels);
+	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, uformat, utype, pixels);
 	mgl.GenerateMipmap(GL_TEXTURE_2D);
 
 	return (mgl_texture){ texture, format };
@@ -4023,9 +4109,10 @@ MGL_API void mglCompute(mgl_program program, unsigned int num_x_group, unsigned 
 
 MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format)
 {
-	GLenum color = mgl_internal_color_type(format);
-	if (color == MGL_INVALID_ENUM) return;
-	mgl.ReadPixels(x, y, width, height, color, GL_UNSIGNED_BYTE, pixels);
+	GLenum utype = mgl_internal_color_type(format);
+	GLenum uformat = mgl_internal_color_format(format);
+	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return;
+	mgl.ReadPixels(x, y, width, height, uformat, utype, pixels);
 }
 
 MGL_API void mglDestroyProgram(mgl_program program) { mgl.DeleteProgram(program.id); }

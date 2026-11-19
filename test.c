@@ -197,7 +197,7 @@ int main(int argc, char **argv)
 		255, 255, 255
 	};
 
-	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_RGB);
+	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_RGB_U8);
 	mglBindTexture(tex, texbinding);
 	mglSetUniform(program2, samplerloc, 1, &texbinding);
 
@@ -232,7 +232,7 @@ int main(int argc, char **argv)
 			size_t rowsz = w * 3;
 			if (!ppm || !pixels) goto end;
 			fprintf(ppm, "P6 %d %d 255 ", (int)w, (int)h);
-			mglReadFrame(0, 0, (int)w, (int)h, pixels, MGL_RGB);
+			mglReadFrame(0, 0, (int)w, (int)h, pixels, MGL_RGB_U8);
 			for (size_t y = 0; y < h / 2; ++y) {
 				unsigned char *top = pixels + y * rowsz;
 				unsigned char *bottom = pixels + (h - y - 1) * rowsz;
