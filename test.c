@@ -35,8 +35,8 @@ int main(int argc, char **argv)
 	if (argc == 2 && argv[1][0] == 'x') glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
 	glfwSetErrorCallback(err);
 	if (!glfwInit()) { printf("NO INIT\n"); return 0; }
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
 	GLFWwindow *window = glfwCreateWindow(wwidth, wheight, "mgl", NULL, NULL);
 	if (!window) { printf("NO WINDOW\n"); return 0; }
 	glfwMakeContextCurrent(window);
@@ -56,10 +56,11 @@ int main(int argc, char **argv)
 	mglDebug(err);
 
 	mglColor(MGL_COLOR_BLEND, 1.0f, 1.0f, 0.0f, 1.0f);
+	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);
 	mglFeature(MGL_BLEND_1MCSTA);
 	mglFeature(MGL_CULL_BACK_CW);
 	mglFeature(MGL_DEPTH_ALWAYS);
-	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);
+	mglFeature(MGL_DOWNGRADE_ON);
 
 	const char *vertex_source = "#version 330\n"
 	"layout(location = 0) in vec2 position;"

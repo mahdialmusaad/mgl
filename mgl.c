@@ -21,6 +21,7 @@
 
 #include <stdarg.h>
 #include <stdint.h>
+#include <stdlib.h>
 #include <string.h>
 #include <stdio.h>
 
@@ -2082,6 +2083,7 @@ static struct mgl_pfn_s {
 	void (*user_debug)(int, const char *);
 
 	mgl_rgba blendcst, clearcol, texbordercol;
+	int downgrade;
 
 	int version;
 	int major, minor;
@@ -2089,8 +2091,9 @@ static struct mgl_pfn_s {
 	int num_extensions;
 	int max_ubo_size, max_ssbo_size;
 	int max_ubos, max_ssbos, max_uniforms;
-
 	int max_attribs;
+
+	char pad[4];
 } mgl;
 
 #ifdef __GNUC__
@@ -2116,7 +2119,7 @@ static void mgl_internal_log(int id, const char *fmt, ...)
 	va_list l;
 
 	if (!mgl.user_debug) return;
-	else va_start(l, fmt);
+	va_start(l, fmt);
 
 	{
 		char buffer[4096];
@@ -2712,15 +2715,33 @@ static unsigned int mgl_internal_attribindices_type(mgl_datatype type)
 	}
 }
 
+static GLenum mgl_internal_type_downgrade(unsigned int type)
+{
+	switch (type) {
+		case GL_DOUBLE: return GL_FLOAT;
+		case GL_DOUBLE_VEC2: return GL_FLOAT_VEC2;
+		case GL_DOUBLE_VEC3: return GL_FLOAT_VEC3;
+		case GL_DOUBLE_VEC4: return GL_FLOAT_VEC4;
+		case GL_DOUBLE_MAT2: return GL_FLOAT_MAT2;
+		case GL_DOUBLE_MAT3: return GL_FLOAT_MAT3;
+		case GL_DOUBLE_MAT4: return GL_FLOAT_MAT4;
+		case GL_DOUBLE_MAT2x3: return GL_FLOAT_MAT2x3;
+		case GL_DOUBLE_MAT2x4: return GL_FLOAT_MAT2x4;
+		case GL_DOUBLE_MAT3x2: return GL_FLOAT_MAT3x2;
+		case GL_DOUBLE_MAT3x4: return GL_FLOAT_MAT3x4;
+		case GL_DOUBLE_MAT4x2: return GL_FLOAT_MAT4x2;
+		case GL_DOUBLE_MAT4x3: return GL_FLOAT_MAT4x3;
+		default: return type;
+	}
+}
+
 static GLenum mgl_internal_shader_type(mgl_shadertype type)
 {
 	switch ((int)type) {
 		case MGL_SHADER_VERTEX: return GL_VERTEX_SHADER;
 		case MGL_SHADER_FRAGMENT: return GL_FRAGMENT_SHADER;
-		case MGL_SHADER_COMPUTE: {
-			return GL_COMPUTE_SHADER;
-		}
-		default: MGL_INVALID_LOG("Invalid shader type %u (expected MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT, MGL_SHADER_COMPUTE, or their fragile variant)\n", type);
+		case MGL_SHADER_COMPUTE: return GL_COMPUTE_SHADER;
+		default: MGL_INVALID_LOG("Invalid shader type %u (expected MGL_SHADER_VERTEX, MGL_SHADER_FRAGMENT, MGL_SHADER_COMPUTE, or their fragile variants)\n", type);
 	}
 }
 
@@ -3559,6 +3580,8 @@ MGL_API void mglFeature(mgl_state state)
 	else if (state == MGL_BLEND_OFF) mgl.Disable(GL_BLEND);
 	else if (state == MGL_POINTSIZE_ON) mgl.Enable(GL_PROGRAM_POINT_SIZE);
 	else if (state == MGL_POINTSIZE_OFF) mgl.Disable(GL_PROGRAM_POINT_SIZE);
+	else if (state == MGL_DOWNGRADE_OFF) mgl.downgrade = 0;
+	else if (state == MGL_DOWNGRADE_ON) mgl.downgrade = !mgl.VertexAttribLPointer;
 	else if (state >= MGL_POLYGON_POINTS && state <= MGL_POLYGON_FILL) {
 		mgl.PolygonMode(GL_FRONT_AND_BACK, mgl_internal_polygon_type(state));
 	} else if (state >= MGL_DEPTH_NEVER && state <= MGL_DEPTH_ALWAYS) {
@@ -3696,7 +3719,8 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigne
 	components = mgl_internal_component_type(type);
 
 	if (components == MGL_INVALID_ENUM || indices == MGL_INVALID_ENUM || datatype == MGL_INVALID_ENUM || sizeof_component == MGL_INVALID_ENUM) return;
-	if (datatype == GL_DOUBLE && !mgl.VertexArrayAttribLFormat) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Double attribute is not supported (%d, needs 41+)\n", mgl.version);
+	if (datatype == GL_DOUBLE && mgl.downgrade) datatype = GL_FLOAT;
+	if (datatype == GL_DOUBLE && !mgl.VertexAttribLPointer) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Double attribute is not supported (%d, needs 41+)\n", mgl.version);
 
 	mgl.BindVertexArray(ds->id);
 	mgl.BindBuffer(GL_ARRAY_BUFFER, buffer.id);
@@ -3751,13 +3775,14 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 {
 	GLuint program;
-	unsigned int hascompute = 0;
+	unsigned int shaders_bits = 0;
 	GLint success, uniforms;
 
-	if (mgl.DispatchCompute) {
-		for (int i = 0; i < nshaders; ++i) hascompute |= shaders[i].type == GL_COMPUTE_SHADER;
-		if (hascompute && nshaders != 1) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "A program cannot have a compute shader alongside other shaders (%d shaders given, expected 1 compute only)\n", nshaders);
+	for (int i = 0; i < nshaders; ++i) {
+		if (shaders[i].id == 0) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "All given shaders must be valid to create a program (%d given, index %d invalid)\n", nshaders, i);
+		shaders_bits |= shaders[i].type == GL_COMPUTE_SHADER ? 0x1 : 0x2;
 	}
+	if (shaders_bits == (0x1 | 0x2)) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "A program cannot have compute shader(s) alongside other shaders (%d shaders given, expected compute only)\n", nshaders);
 
 	program = mgl.CreateProgram();
 
@@ -3778,7 +3803,7 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 
 	mgl.GetProgramiv(program, GL_ACTIVE_UNIFORMS, &uniforms);
 
-	return (mgl_program){ program, (unsigned int)uniforms, hascompute };
+	return (mgl_program){ program, (unsigned int)uniforms, shaders_bits & 0x1 };
 }
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name)
 {
@@ -3815,9 +3840,9 @@ MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
 	type = MGL_INVALID_ENUM;
 
 	for (unsigned int i = 0; i < program.uniforms; ++i) {
-		char indexname[256];
-		GLint size;
-		mgl.GetActiveUniform(program.id, i, sizeof indexname, NULL, &size, &type, indexname);
+		char indexname[2048];
+		GLint size, length;
+		mgl.GetActiveUniform(program.id, i, sizeof indexname, &length, &size, &type, indexname);
 		if (strcmp(name, indexname) != 0) continue;
 	}
 
@@ -3826,11 +3851,19 @@ MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
 MGL_API void mglSetUniform(mgl_program program, mgl_uniform uniform, unsigned int arraycount, const void *data)
 {
 	GLint ucount = (GLint)arraycount;
+	GLenum utype = uniform.type, original = utype;
 	ucount = ucount == 0 ? 1 : ucount;
+
+	if (mgl.downgrade && (utype = mgl_internal_type_downgrade(uniform.type)) != original) {
+		float *downgraded = (float *)malloc(sizeof(float) * arraycount);
+		if (!downgraded) return;
+		for (unsigned int i = 0; i < arraycount; ++i) downgraded[i] = (float)(((const double *)data)[i]);
+		free(downgraded);
+	}
 
 	mgl.UseProgram(program.id);
 
-	switch (uniform.type) {
+	switch (utype) {
 		case GL_SAMPLER_1D: case GL_SAMPLER_2D: case GL_SAMPLER_3D:
 		case GL_SAMPLER_1D_ARRAY: case GL_SAMPLER_2D_ARRAY:
 		case GL_BOOL: case GL_INT: mgl.Uniform1iv(uniform.location, ucount, (const GLint *)data); break;

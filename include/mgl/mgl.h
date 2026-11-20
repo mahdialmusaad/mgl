@@ -48,7 +48,9 @@ typedef enum {
 	MGL_CULL_NONE_CCW, MGL_CULL_BACK_CCW, MGL_CULL_FRONT_CCW, MGL_CULL_FRONTBACK_CCW,
 	MGL_CULL_NONE_CW, MGL_CULL_BACK_CW, MGL_CULL_FRONT_CW, MGL_CULL_FRONTBACK_CW,
 	/* Whether a drawn point's size can be modified in shaders via gl_PointSize. Disabled by default. */
-	MGL_POINTSIZE_OFF, MGL_POINTSIZE_ON
+	MGL_POINTSIZE_OFF, MGL_POINTSIZE_ON,
+	/* Whether to downgrade any usage of the double type for uniforms or attributes to a float if it is not supported. */
+	MGL_DOWNGRADE_OFF, MGL_DOWNGRADE_ON
 } mgl_state;
 
 typedef enum {
@@ -66,7 +68,7 @@ typedef enum {
 	MGL_UINT, MGL_UINT2, MGL_UINT3, MGL_UINT4,
 	/* Float vectors */
 	MGL_FLOAT, MGL_FLOAT2, MGL_FLOAT3, MGL_FLOAT4,
-	/* Double vectors (4.1+) */
+	/* Double vectors */
 	MGL_DOUBLE, MGL_DOUBLE2, MGL_DOUBLE3, MGL_DOUBLE4,
 	/* 2xY float matrices */
 	MGL_MAT2X2, MGL_MAT2X3, MGL_MAT2X4,
@@ -74,11 +76,11 @@ typedef enum {
 	MGL_MAT3X2, MGL_MAT3X3, MGL_MAT3X4,
 	/* 4xY float matrices */
 	MGL_MAT4X2, MGL_MAT4X3, MGL_MAT4X4,
-	/* 2xY double matrices (4.1+) */
+	/* 2xY double matrices */
 	MGL_DMAT2X2, MGL_DMAT2X3, MGL_DMAT2X4,
-	/* 3xY double matrices (4.1+) */
+	/* 3xY double matrices */
 	MGL_DMAT3X2, MGL_DMAT3X3, MGL_DMAT3X4,
-	/* 4xY double matrices (4.1+) */
+	/* 4xY double matrices */
 	MGL_DMAT4X2, MGL_DMAT4X3, MGL_DMAT4X4,
 } mgl_datatype;
 
