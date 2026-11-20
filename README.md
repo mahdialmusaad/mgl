@@ -6,7 +6,6 @@ A simple yet powerful OpenGL abstractor to heavily simplify creating graphical a
 - Extensive error checking
 - Compiles in standard C99
 - Supports OpenGL 3.3+ contexts
-The test file demonstrates most features available (frame capture, indirect and instanced drawing, uniforms, textures, etc).
 ## Building
 The provided CMake file can be used to create a static library and build the test program (requires GLFW). You can alternatively compile the source file alongside your own program and include the header.
 ```bash

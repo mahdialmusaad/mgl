@@ -284,9 +284,9 @@ typedef struct {
 /* The operation is not supported by the context. */
 #define MGL_ERROR_UNSUPPORTED -255
 
-/* Initialize OpenGL library. Returns OpenGL version loaded in the format: major * 10 + minor. */
+/* Initialize library internals and GL function pointers. Returns API version loaded in the format: major * 10 + minor. */
 MGL_API int mglInit(void (*loader(const char *))(void));
-/* Set debug handler for errors. */
+/* Set the debug handler for errors. */
 MGL_API void mglDebug(void (*debug_callback)(int id, const char *name));
 
 /* Returns a null-terminated OpenGL string. */
@@ -338,7 +338,7 @@ MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer);
    For example, adding an MGL_MAT3X4 attribute at index 0 will enable indices 0, 1 and 2 - each of which will store a vec4 (stride/offset set accordingly).
    Stride and offset parameters are interpreted as byte offsets.
    This accepts a pointer on purpose and may update the underlying value; this must be maintained afterwards. */
-MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, unsigned int index, mgl_datatype type, size_t stride, size_t offset, unsigned int divisor);
+MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, int index, mgl_datatype type, size_t stride, size_t offset, unsigned int divisor);
 
 /* Create a shader of a specific type by combining multiple code sources. */
 MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, int nsources);
@@ -347,6 +347,8 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders);
 /* Link a created uniform or shader storage buffer to a corresponding named buffer in the program code. */
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name);
 
+/* Locate an attribute by name. -1 if not found. */
+MGL_API int mglLocateAttribute(mgl_program program, const char *name);
 /* Locate a uniform by name. */
 MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name);
 /* Set a uniform's value. If it is not an array, set arraycount to 1. */
