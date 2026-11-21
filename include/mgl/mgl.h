@@ -310,11 +310,11 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type);
 /* Set the data of the created buffer.
    Data may be NULL - this will have the effect of reserving the memory.
    Index buffers must be 4 bytes each. */
-MGL_API void mglBufferData(mgl_buffer buffer, mgl_usage usage, const void *data, size_t bytes);
+MGL_API void mglBufferData(const mgl_buffer *buffer, mgl_usage usage, const void *data, size_t bytes);
 /* Set a specific part of the buffer data. */
-MGL_API void mglBufferDataPartial(mgl_buffer buffer, const void *data, size_t offset, size_t bytes);
+MGL_API void mglBufferDataPartial(const mgl_buffer *buffer, const void *data, size_t offset, size_t bytes);
 /* Map or unmap the buffer contents into memory. */
-MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access);
+MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access);
 
 /* Create a texture with the specified information.
    Internally, (e.g. when accessing in a shader), the texture is stored in an RGBA format;
@@ -324,75 +324,73 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access);
 MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, unsigned int filters, mgl_color format);
 /* Bind the given texture to a specific texture unit.
    To use this in shader code, use mglSetUniform with a sampler variable with a signed integer set to the same texture binding/unit. */
-MGL_API void mglBindTexture(mgl_texture texture, unsigned int binding);
+MGL_API void mglBindTexture(const mgl_texture *texture, unsigned int binding);
 
 /* Create a framebuffer of the specified size.
    The framebuffer has a depth, stencil and color attachment. */
 MGL_API mgl_framebuffer mglCreateFramebuffer(int width, int height);
 /* Bind the given framebuffer. This will become the target of mglDraw* and mglReadFrame operations.
    Pass in a NULL pointer to use the default framebuffer, i.e. operating on the screen as a whole. */
-MGL_API void mglUseFramebuffer(mgl_framebuffer *fb);
+MGL_API void mglUseFramebuffer(const mgl_framebuffer *fb);
 /* Get the texture of the given framebuffer. You can then use it in texture-related options, such as mglBindTexture.
    You should not delete this texture for obvious reasons. */
-MGL_API mgl_texture mglFramebufferTexture(mgl_framebuffer fb);
+MGL_API mgl_texture mglFramebufferTexture(const mgl_framebuffer *fb);
 /* Resize the framebuffer. */
 MGL_API void mglResizeFramebuffer(mgl_framebuffer *fb, int width, int height);
 
 /* Create a buffer data store. You could use this to store mesh and index data. */
 MGL_API mgl_datastore mglCreateDataStore(void);
 /* Add a buffer to the data store.
-   Vertex buffers should be added via the mglDataStoreAttribute function, any attempts here will be ignored.
-   This accepts a pointer on purpose and may update the underlying value; this must be maintained afterwards. */
-MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer);
+   Vertex buffers should be added via the mglDataStoreAttribute function, any attempts here will be ignored. */
+MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, const mgl_buffer *buffer);
 /* Set or add an attribute to the data store, pointing to data of the given vertex buffer.
    If a matrix type is given, it will enable all adjacent indices required to hold each row of the matrix.
    For example, adding an MGL_MAT3X4 attribute at index 0 will enable indices 0, 1 and 2 - each of which will store a vec4 (stride/offset set accordingly).
-   Stride and offset parameters are interpreted as byte offsets.
-   This accepts a pointer on purpose and may update the underlying value; this must be maintained afterwards. */
-MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, int index, mgl_datatype type, size_t stride, size_t offset, unsigned int divisor);
+   Stride and offset parameters are interpreted as byte offsets. */
+MGL_API void mglDataStoreAttribute(mgl_datastore *ds, const mgl_buffer *buffer, int index, mgl_datatype type, size_t stride, size_t offset, unsigned int divisor);
 
 /* Create a shader of a specific type by combining multiple code sources. */
 MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, int nsources);
 /* Create a program from 1 or more shaders. Any 'fragile' shader is destroyed after this. */
 MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders);
 /* Link a created uniform or shader storage buffer to a corresponding named buffer in the program code. */
-MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name);
+MGL_API void mglProgramBindBuffer(const mgl_program *program, const mgl_buffer *buffer, unsigned int binding_point, const char *name);
 
 /* Locate an attribute by name. -1 if not found. */
-MGL_API int mglLocateAttribute(mgl_program program, const char *name);
+MGL_API int mglLocateAttribute(const mgl_program *program, const char *name);
 /* Locate a uniform by name. */
-MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name);
+MGL_API mgl_uniform mglLocateUniform(const mgl_program *program, const char *name);
 /* Set a uniform's value. If it is not an array, set arraycount to 1. */
-MGL_API void mglSetUniform(mgl_program program, mgl_uniform uniform, unsigned int arraycount, const void *data);
+MGL_API void mglSetUniform(const mgl_program *program, const mgl_uniform *uniform, unsigned int arraycount, const void *data);
 
 /* Draw using the given data store, program, primitive type and vertex/index offset and count. */
-MGL_API void mglDraw(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count);
+MGL_API void mglDraw(const mgl_datastore *ds, const mgl_program *program, mgl_drawtype primitive, unsigned int offset, unsigned int count);
 /* Draw using the given data store, program, primitive type and the offset and count values for both the number of instances and number of vertices/indices.
    element_constant is added to each index if an index buffer has been added to the data store. */
-MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int offset, unsigned int count, unsigned int instance_offset, unsigned int instance_count, int element_constant);
+MGL_API void mglDrawInstanced(const mgl_datastore *ds, const mgl_program *program, mgl_drawtype primitive, unsigned int offset, unsigned int count, unsigned int instance_offset, unsigned int instance_count, int element_constant);
 /* Draw using the given data store, program, primitive type and indirect command offset and count. */
-MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype primitive, unsigned int cmd_offset, unsigned int cmd_count);
+MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program, mgl_drawtype primitive, unsigned int cmd_offset, unsigned int cmd_count);
 
 /* Execute a compute shader program with the given work group dimensions. */
-MGL_API void mglCompute(mgl_program program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group);
+MGL_API void mglCompute(const mgl_program *program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group);
 
 /* Retrieve specific dimensions of the current frame's pixels in a given format. */
 MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format);
 
 /* Destroy the program object. */
-MGL_API void mglDestroyProgram(mgl_program program);
+MGL_API void mglDestroyProgram(mgl_program *program);
 /* Destroy the shader object. */
-MGL_API void mglDestroyShader(mgl_shader shader);
+MGL_API void mglDestroyShader(mgl_shader *shader);
 /* Destroy the texture object. */
-MGL_API void mglDestroyTexture(mgl_texture texture);
+MGL_API void mglDestroyTexture(mgl_texture *texture);
 /* Destroy the data store object.
    Any buffers used by this data store are not affected. */
-MGL_API void mglDestroyDataStore(mgl_datastore ds);
+MGL_API void mglDestroyDataStore(mgl_datastore *ds);
 /* Destroy the buffer object and unbind from the data store.
    This wil disable any attributes that were enabled using the given buffer. */
-MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds);
+MGL_API void mglDestroyBuffer(mgl_buffer *buffer, mgl_datastore *ds);
 /* Destroy the framebuffer object and unbind it if in use.
    This will also destroy the underlying texture. */
-MGL_API void mglDestroyFramebuffer(mgl_framebuffer fb);
+MGL_API void mglDestroyFramebuffer(mgl_framebuffer *fb);
 
 #endif

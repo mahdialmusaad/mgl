@@ -52,7 +52,7 @@ int main(int argc, char **argv)
 	const char *vertex_source3 = "#version 330\n"
 	"layout(location = 0) in vec2 position;"
 	"layout(std140) uniform named_ubo { vec2 ubo_position; };"
-	"void main(){ gl_Position = vec4(position + ubo_position.xy, 0.0, 1.0); }";
+	"void main(){ gl_Position = vec4(position + ubo_position, 0.0, 1.0); }";
 	const char *fragment_source3 = "#version 330\n"
 	"out vec4 frag;"
 	"void main(){ frag = vec4(1.0, 0.0, 0.0, 0.5); }";
@@ -133,7 +133,7 @@ int main(int argc, char **argv)
 	mgl_buffer ubo_buffer, vbo, ivbo, dvbo, vbo2, vbo3, ebo3, vbo4, ivbo4, vbofb;
 	mgl_datastore ds, ds2, ds3, ds4, dsfb;
 	mgl_uniform location, samplerloc, fbtexloc, invertloc;
-	mgl_texture tex;
+	mgl_texture tex, fbtex;
 
 	struct { float ubo_position[2]; } ubo = { { -1.0f, -0.9f } };
 	const float p1col[] = { 1.0f, 1.0f, 1.0f };
@@ -169,11 +169,12 @@ int main(int argc, char **argv)
 	mglColor(MGL_COLOR_BLEND, 1.0f, 1.0f, 0.0f, 1.0f);
 	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);
 	mglColor(MGL_COLOR_TEXBORDER, 1.0f, 0.5f, 0.0f, 1.0f);
-	mglFeature(MGL_BLEND_1MCSTA);
+	mglFeature(MGL_BLEND_1MSRCA);
 	mglFeature(MGL_CULL_BACK_CW);
 	mglFeature(MGL_DOWNGRADE_ON);
 
 	fb = mglCreateFramebuffer(wwidth, wheight);
+	fbtex = mglFramebufferTexture(&fb);
 
 	finalshaders[0] = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source, 1);
 	finalshaders[1] =  mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source, 1);
@@ -192,57 +193,57 @@ int main(int argc, char **argv)
 	program4 = mglCreateProgram(finalshaders, 2);
 
 	ubo_buffer = mglCreateBuffer(MGL_BUFFER_UNIFORM);
-	mglBufferData(ubo_buffer, MGL_USAGE_DYNAMIC, &ubo, sizeof ubo);
-	mglProgramBindBuffer(program3, ubo_buffer, ubo_binding_point, "named_ubo");
+	mglBufferData(&ubo_buffer, MGL_USAGE_DYNAMIC, &ubo, sizeof ubo);
+	mglProgramBindBuffer(&program3, &ubo_buffer, ubo_binding_point, "named_ubo");
 
 	ds = mglCreateDataStore();
 	vbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds, vbo, 0, MGL_FLOAT2, 0, 0, 0);
+	mglBufferData(&vbo, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglDataStoreAttribute(&ds, &vbo, 0, MGL_FLOAT2, 0, 0, 0);
 	ivbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(ivbo, MGL_USAGE_CONSTANT, instanced, sizeof instanced);
-	mglDataStoreAttribute(&ds, ivbo, 1, MGL_FLOAT2, 0, 0, 1);
+	mglBufferData(&ivbo, MGL_USAGE_CONSTANT, instanced, sizeof instanced);
+	mglDataStoreAttribute(&ds, &ivbo, 1, MGL_FLOAT2, 0, 0, 1);
 	dvbo = mglCreateBuffer(MGL_BUFFER_DRAW_INDIRECT);
-	mglBufferData(dvbo, MGL_USAGE_CONSTANT, indirect, sizeof indirect);
-	mglAddDataStoreBuffer(&ds, dvbo);
+	mglBufferData(&dvbo, MGL_USAGE_CONSTANT, indirect, sizeof indirect);
+	mglAddDataStoreBuffer(&ds, &dvbo);
 
 	ds2 = mglCreateDataStore();
 	vbo2 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo2, MGL_USAGE_CONSTANT, verts2, sizeof verts2);
-	mglDataStoreAttribute(&ds2, vbo2, 0, MGL_FLOAT2, 4 * sizeof(float), 0 * sizeof(float), 0);
-	mglDataStoreAttribute(&ds2, vbo2, 1, MGL_FLOAT2, 4 * sizeof(float), 2 * sizeof(float), 0);
+	mglBufferData(&vbo2, MGL_USAGE_CONSTANT, verts2, sizeof verts2);
+	mglDataStoreAttribute(&ds2, &vbo2, 0, MGL_FLOAT2, 4 * sizeof(float), 0 * sizeof(float), 0);
+	mglDataStoreAttribute(&ds2, &vbo2, 1, MGL_FLOAT2, 4 * sizeof(float), 2 * sizeof(float), 0);
 
 	ds3 = mglCreateDataStore();
 	vbo3 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo3, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds3, vbo3, 0, MGL_FLOAT2, 0, 0, 0);
+	mglBufferData(&vbo3, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglDataStoreAttribute(&ds3, &vbo3, 0, MGL_FLOAT2, 0, 0, 0);
 	ebo3 = mglCreateBuffer(MGL_BUFFER_INDICES_UINT);
-	mglBufferData(ebo3, MGL_USAGE_CONSTANT, inds, sizeof inds);
+	mglBufferData(&ebo3, MGL_USAGE_CONSTANT, inds, sizeof inds);
 
 	ds4 = mglCreateDataStore();
 	vbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo4, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds4, vbo4, 0, MGL_FLOAT2, 0, 0, 0);
+	mglBufferData(&vbo4, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglDataStoreAttribute(&ds4, &vbo4, 0, MGL_FLOAT2, 0, 0, 0);
 	ivbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(ivbo4, MGL_USAGE_CONSTANT, instanced2, sizeof instanced2);
-	mglDataStoreAttribute(&ds4, ivbo4, 1, MGL_FLOAT2, 0, 0, 1);
+	mglBufferData(&ivbo4, MGL_USAGE_CONSTANT, instanced2, sizeof instanced2);
+	mglDataStoreAttribute(&ds4, &ivbo4, 1, MGL_FLOAT2, 0, 0, 1);
 
 	dsfb = mglCreateDataStore();
 	vbofb = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbofb, MGL_USAGE_CONSTANT, vertsfb, sizeof vertsfb);
-	mglDataStoreAttribute(&dsfb, vbofb, 0, MGL_FLOAT2, 4 * sizeof(float), 0 * sizeof(float), 0);
-	mglDataStoreAttribute(&dsfb, vbofb, 1, MGL_FLOAT2, 4 * sizeof(float), 2 * sizeof(float), 0);
+	mglBufferData(&vbofb, MGL_USAGE_CONSTANT, vertsfb, sizeof vertsfb);
+	mglDataStoreAttribute(&dsfb, &vbofb, 0, MGL_FLOAT2, 4 * sizeof(float), 0 * sizeof(float), 0);
+	mglDataStoreAttribute(&dsfb, &vbofb, 1, MGL_FLOAT2, 4 * sizeof(float), 2 * sizeof(float), 0);
 
-	location = mglLocateUniform(program, "col");
-	samplerloc = mglLocateUniform(program2, "tex");
-	fbtexloc = mglLocateUniform(program4, "tex");
-	invertloc = mglLocateUniform(program4, "invert");
+	location = mglLocateUniform(&program, "col");
+	samplerloc = mglLocateUniform(&program2, "tex");
+	fbtexloc = mglLocateUniform(&program4, "tex");
+	invertloc = mglLocateUniform(&program4, "invert");
 
 	tex = mglCreateTexture(4, 2, texpixels, MGL_TEXTURE_SCALING_NEAREST | MGL_TEXTURE_WRAP_BORDER, MGL_RGB_U8);
-	mglBindTexture(tex, texbinding);
-	mglSetUniform(program2, samplerloc, 1, &texbinding);
-	mglBindTexture(mglFramebufferTexture(fb), fbtexbinding);
-	mglSetUniform(program4, fbtexloc, 1, &fbtexbinding);
+	mglBindTexture(&tex, texbinding);
+	mglSetUniform(&program2, &samplerloc, 1, &texbinding);
+	mglBindTexture(&fbtex, fbtexbinding);
+	mglSetUniform(&program4, &fbtexloc, 1, &fbtexbinding);
 
 	srand((unsigned int)time(NULL));
 
@@ -252,25 +253,25 @@ int main(int argc, char **argv)
 		if (glfwGetKey(window, GLFW_KEY_ESCAPE) == GLFW_PRESS) glfwSetWindowShouldClose(window, GLFW_TRUE);
 		if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_PRESS && !cd) { mglFeature((wire = 1 - wire) ? MGL_POLYGON_LINES : MGL_POLYGON_FILL); cd = 1; }
 		else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_RELEASE) cd = 0;
-		if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS && !cdf3) { invert = 1 - invert; mglSetUniform(program4, invertloc, 1, &invert); cdf3 = 1; }
+		if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS && !cdf3) { invert = 1 - invert; mglSetUniform(&program4, &invertloc, 1, &invert); cdf3 = 1; }
 		else if (glfwGetKey(window, GLFW_KEY_X) == GLFW_RELEASE) cdf3 = 0;
 		mglUseFramebuffer(&fb);
-		mglFeature(MGL_DEPTH_LESS);
+		mglFeature(MGL_DEPTH_LEQUAL);
 		mglClear(MGL_CLEAR_DEPTH | MGL_CLEAR_COLOR);
-		mglDraw(ds2, program2, MGL_DRAW_STRIPS, 0, 4);
-		mglSetUniform(program, location, 1, p1col);
-		mglDrawInstanced(ds4, program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3, 0);
+		mglDraw(&ds2, &program2, MGL_DRAW_STRIPS, 0, 4);
+		mglSetUniform(&program, &location, 1, p1col);
+		mglDrawInstanced(&ds4, &program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3, 0);
 		if (fid++ % 60 == 0) { indcol[0] = nrand(); indcol[1] = nrand(); indcol[2] = nrand(); }
-		mglSetUniform(program, location, 1, indcol);
-		mglDrawIndirect(ds, program, MGL_DRAW_STRIPS, (fid / 60) % 2, 1);
-		mglDraw(ds3, program3, MGL_DRAW_STRIPS, 0, 6);
+		mglSetUniform(&program, &location, 1, indcol);
+		mglDrawIndirect(&ds, &program, MGL_DRAW_STRIPS, (fid / 60) % 2, 1);
+		mglDraw(&ds3, &program3, MGL_DRAW_STRIPS, 0, 6);
 		mglUseFramebuffer(NULL);
 		mglClear(MGL_CLEAR_DEPTH | MGL_CLEAR_COLOR);
 		mglFeature(MGL_DEPTH_OFF);
-		mglDraw(dsfb, program4, MGL_DRAW_STRIPS, 0, 4);
+		mglDraw(&dsfb, &program4, MGL_DRAW_STRIPS, 0, 4);
 		ubo.ubo_position[0] = ubo.ubo_position[0] > 0.9f ? ((void)((ubo.ubo_position[1] += 0.1f)), -1.0f) : ubo.ubo_position[0] + 0.016f;
 		ubo.ubo_position[1] = ubo.ubo_position[1] > 1.0f ? -0.9f : ubo.ubo_position[1];
-		mglBufferDataPartial(ubo_buffer, &ubo, 0, sizeof ubo);
+		mglBufferDataPartial(&ubo_buffer, &ubo, 0, sizeof ubo);
 		glfwSwapBuffers(window);
 		if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS && !cdf2) {
 			const size_t w = (size_t)wwidth, h = (size_t)wheight;
@@ -297,32 +298,32 @@ int main(int argc, char **argv)
 		if (fid > 2 && fid % 60 == 1) printf("FPS: %1f\n", 1.0 / (glfwGetTime() - start));
 	}
 
-	mglDestroyBuffer(vbo, ds);
-	mglDestroyBuffer(ivbo, ds);
-	mglDestroyBuffer(dvbo, ds);
-	mglDestroyDataStore(ds);
-	mglDestroyProgram(program);
+	mglDestroyBuffer(&vbo, &ds);
+	mglDestroyBuffer(&ivbo, &ds);
+	mglDestroyBuffer(&dvbo, &ds);
+	mglDestroyDataStore(&ds);
+	mglDestroyProgram(&program);
 
-	mglDestroyBuffer(vbo2, ds2);
-	mglDestroyDataStore(ds2);
-	mglDestroyProgram(program2);
+	mglDestroyBuffer(&vbo2, &ds2);
+	mglDestroyDataStore(&ds2);
+	mglDestroyProgram(&program2);
 
-	mglDestroyBuffer(ubo_buffer, ds3);
-	mglDestroyBuffer(vbo3, ds3);
-	mglDestroyBuffer(ebo3, ds3);
-	mglDestroyDataStore(ds3);
-	mglDestroyProgram(program3);
+	mglDestroyBuffer(&ubo_buffer, &ds3);
+	mglDestroyBuffer(&vbo3, &ds3);
+	mglDestroyBuffer(&ebo3, &ds3);
+	mglDestroyDataStore(&ds3);
+	mglDestroyProgram(&program3);
 
-	mglDestroyBuffer(vbo4, ds4);
-	mglDestroyBuffer(ivbo4, ds4);
-	mglDestroyDataStore(ds4);
+	mglDestroyBuffer(&vbo4, &ds4);
+	mglDestroyBuffer(&ivbo4, &ds4);
+	mglDestroyDataStore(&ds4);
 
-	mglDestroyBuffer(vbofb, dsfb);
-	mglDestroyDataStore(dsfb);
-	mglDestroyFramebuffer(fb);
+	mglDestroyBuffer(&vbofb, &dsfb);
+	mglDestroyDataStore(&dsfb);
+	mglDestroyFramebuffer(&fb);
 
-	mglDestroyTexture(tex);
-	mglDestroyProgram(program4);
+	mglDestroyTexture(&tex);
+	mglDestroyProgram(&program4);
 
 	glfwTerminate();
 
