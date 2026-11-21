@@ -2086,7 +2086,7 @@ static struct mgl_pfn_s {
 	void (*user_debug)(int, const char *);
 
 	mgl_rgba blendcst, clearcol, texbordercol;
-	int downgrade;
+	int downgrade_ssbo;
 
 	int version;
 	int major, minor;
@@ -2364,21 +2364,9 @@ static GLenum mgl_internal_buffer_type(mgl_buffertype type)
 		case MGL_BUFFER_INDICES_USHORT: FALLTHROUGH
 		case MGL_BUFFER_INDICES_UINT: return GL_ELEMENT_ARRAY_BUFFER;
 		case MGL_BUFFER_UNIFORM: return GL_UNIFORM_BUFFER;
-		case MGL_BUFFER_DRAW_INDIRECT: return GL_DRAW_INDIRECT_BUFFER;
-		case MGL_BUFFER_SHADER_STORAGE: return GL_SHADER_STORAGE_BUFFER;
+		case MGL_BUFFER_DRAW_INDIRECT: return mgl.MultiDrawArraysIndirect ? GL_DRAW_INDIRECT_BUFFER : GL_COPY_READ_BUFFER;
+		case MGL_BUFFER_SHADER_STORAGE: return mgl.downgrade_ssbo ? GL_UNIFORM_BUFFER : GL_SHADER_STORAGE_BUFFER;
 		default: MGL_INVALID_LOG("Invalid buffer type %u", type);
-	}
-}
-
-static GLenum mgl_internal_buffer_fwdctype(unsigned int type)
-{
-	switch (type) {
-		case GL_ARRAY_BUFFER: return GL_ARRAY_BUFFER;
-		case GL_ELEMENT_ARRAY_BUFFER: return GL_ELEMENT_ARRAY_BUFFER;
-		case GL_UNIFORM_BUFFER: return GL_UNIFORM_BUFFER;
-		case GL_DRAW_INDIRECT_BUFFER: return mgl.MultiDrawArraysIndirect ? GL_DRAW_INDIRECT_BUFFER : GL_COPY_READ_BUFFER;
-		case GL_SHADER_STORAGE_BUFFER: return mgl.ShaderStorageBlockBinding ? GL_SHADER_STORAGE_BUFFER : GL_UNIFORM_BUFFER;
-		default: MGL_INVALID_LOG("Invalid buffer type (fwdc) %u", type);
 	}
 }
 
@@ -2816,26 +2804,6 @@ static unsigned int mgl_internal_attribindices_type(mgl_datatype type)
 		case MGL_DMAT4X3: FALLTHROUGH
 		case MGL_DMAT4X4: return 4;
 		default: MGL_INVALID_LOG("Invalid data type (indices) %u", type);
-	}
-}
-
-static GLenum mgl_internal_type_downgrade(unsigned int type)
-{
-	switch (type) {
-		case GL_DOUBLE: return GL_FLOAT;
-		case GL_DOUBLE_VEC2: return GL_FLOAT_VEC2;
-		case GL_DOUBLE_VEC3: return GL_FLOAT_VEC3;
-		case GL_DOUBLE_VEC4: return GL_FLOAT_VEC4;
-		case GL_DOUBLE_MAT2: return GL_FLOAT_MAT2;
-		case GL_DOUBLE_MAT3: return GL_FLOAT_MAT3;
-		case GL_DOUBLE_MAT4: return GL_FLOAT_MAT4;
-		case GL_DOUBLE_MAT2x3: return GL_FLOAT_MAT2x3;
-		case GL_DOUBLE_MAT2x4: return GL_FLOAT_MAT2x4;
-		case GL_DOUBLE_MAT3x2: return GL_FLOAT_MAT3x2;
-		case GL_DOUBLE_MAT3x4: return GL_FLOAT_MAT3x4;
-		case GL_DOUBLE_MAT4x2: return GL_FLOAT_MAT4x2;
-		case GL_DOUBLE_MAT4x3: return GL_FLOAT_MAT4x3;
-		default: return type;
 	}
 }
 
@@ -3681,11 +3649,12 @@ MGL_API void mglClear(unsigned int clearbits)
 MGL_API void mglFeature(mgl_state state)
 {
 	if (state == MGL_DEPTH_OFF) mgl.Disable(GL_DEPTH_TEST);
+	else if (state == MGL_DEPTH_ON) mgl.Enable(GL_DEPTH_TEST);
 	else if (state == MGL_BLEND_OFF) mgl.Disable(GL_BLEND);
-	else if (state == MGL_POINTSIZE_ON) mgl.Enable(GL_PROGRAM_POINT_SIZE);
 	else if (state == MGL_POINTSIZE_OFF) mgl.Disable(GL_PROGRAM_POINT_SIZE);
-	else if (state == MGL_DOWNGRADE_OFF) mgl.downgrade = 0;
-	else if (state == MGL_DOWNGRADE_ON) mgl.downgrade = !mgl.VertexAttribLPointer;
+	else if (state == MGL_POINTSIZE_ON) mgl.Enable(GL_PROGRAM_POINT_SIZE);
+	else if (state == MGL_DOWNGRADE_SSBO_OFF) mgl.downgrade_ssbo = 0;
+	else if (state == MGL_DOWNGRADE_SSBO_ON) mgl.downgrade_ssbo = !mgl.ShaderStorageBlockBinding;
 	else if (state >= MGL_POLYGON_POINTS && state <= MGL_POLYGON_FILL) {
 		mgl.PolygonMode(GL_FRONT_AND_BACK, mgl_internal_polygon_type(state));
 	} else if (state >= MGL_DEPTH_NEVER && state <= MGL_DEPTH_ALWAYS) {
@@ -3719,41 +3688,33 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type)
 }
 MGL_API void mglBufferData(const mgl_buffer *buffer, mgl_usage usage, const void *data, size_t bytes)
 {
-	GLenum underlying, hint;
+	GLenum hint;
 	if (!buffer || buffer->id == MGL_INVALID_ID) return;
-	underlying = mgl_internal_buffer_fwdctype(buffer->type);
-	if (underlying == MGL_INVALID_ENUM) return;
 	hint = mgl_internal_buffer_hint(buffer->type, usage);
 	if (hint == MGL_INVALID_ENUM) return;
-	mgl.BindBuffer(underlying, buffer->id);
+	mgl.BindBuffer(buffer->type, buffer->id);
 	/* TODO: more buffer options */
-	if (usage == MGL_USAGE_CONSTANT && mgl.BufferStorage) mgl.BufferStorage(underlying, (GLsizeiptr)bytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
-	else mgl.BufferData(underlying, (GLsizeiptr)bytes, data, hint);
-	mgl.BindBuffer(underlying, 0);
+	if (usage == MGL_USAGE_CONSTANT && mgl.BufferStorage) mgl.BufferStorage(buffer->type, (GLsizeiptr)bytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
+	else mgl.BufferData(buffer->type, (GLsizeiptr)bytes, data, hint);
+	mgl.BindBuffer(buffer->type, 0);
 }
 MGL_API void mglBufferDataPartial(const mgl_buffer *buffer, const void *data, size_t offset, size_t bytes)
 {
-	GLenum underlying;
 	if (!buffer || buffer->id == MGL_INVALID_ID) return;
-	underlying = mgl_internal_buffer_fwdctype(buffer->type);
-	if (underlying == MGL_INVALID_ENUM) return;
-	mgl.BindBuffer(underlying, buffer->id);
-	mgl.BufferSubData(underlying, (GLintptr)offset, (GLsizeiptr)bytes, data);
-	mgl.BindBuffer(underlying, 0);
+	mgl.BindBuffer(buffer->type, buffer->id);
+	mgl.BufferSubData(buffer->type, (GLintptr)offset, (GLsizeiptr)bytes, data);
+	mgl.BindBuffer(buffer->type, 0);
 }
 MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access)
 {
 	void *result = NULL;
-	GLenum utype;
 	if (!buffer || buffer->id == MGL_INVALID_ID) return NULL;
-	utype = mgl_internal_buffer_fwdctype(buffer->type);
-	if (utype == MGL_INVALID_ENUM) return NULL;
-	mgl.BindBuffer(utype, buffer->id);
+	mgl.BindBuffer(buffer->id, buffer->id);
 	if (access != MGL_ACCESS_UNMAP) {
 		GLenum uaccess = mgl_internal_access_type(access);
-		if (uaccess != MGL_INVALID_ENUM) result = mgl.MapBuffer(utype, uaccess);
-	} else mgl.UnmapBuffer(utype);
-	mgl.BindBuffer(utype, 0);
+		if (uaccess != MGL_INVALID_ENUM) result = mgl.MapBuffer(buffer->type, uaccess);
+	} else mgl.UnmapBuffer(buffer->id);
+	mgl.BindBuffer(buffer->id, 0);
 	return result;
 }
 
@@ -3902,7 +3863,7 @@ MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, const mgl_buffer *buffer)
 {
 	if (!ds || ds->id == MGL_INVALID_ID || buffer->id == MGL_INVALID_ID) return;
 
-	if (buffer->type != GL_ELEMENT_ARRAY_BUFFER && buffer->type != GL_DRAW_INDIRECT_BUFFER) {
+	if (buffer->type != GL_ELEMENT_ARRAY_BUFFER && buffer->type != GL_DRAW_INDIRECT_BUFFER && buffer->type != GL_COPY_READ_BUFFER) {
 		mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "You cannot add this type of buffer to the data store (DSID %u | BID %u, %u)", ds->id, buffer->id, (unsigned int)buffer->type);
 		return;
 	}
@@ -3912,7 +3873,7 @@ MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, const mgl_buffer *buffer)
 			mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "The data store already has an index buffer (DSID %u | BID %u, %u)", ds->id, buffer->id, (unsigned int)buffer->type);
 			return;
 		} else ds->indexsz = buffer->indexsz;
-	} else if (buffer->type == GL_DRAW_INDIRECT_BUFFER) {
+	} else if (buffer->type == GL_DRAW_INDIRECT_BUFFER || buffer->type == GL_COPY_READ_BUFFER) {
 		if (ds->indirect) mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "The data store already has an indirect buffer (DSID %u | BID %u, %u)", ds->id, buffer->id, (unsigned int)buffer->type);
 		else ds->indirect = buffer->id;
 		return;
@@ -3942,7 +3903,6 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, const mgl_buffer *buffer, 
 	components = mgl_internal_component_type(type);
 
 	if (components == MGL_INVALID_ENUM || indices == MGL_INVALID_ENUM || datatype == MGL_INVALID_ENUM || sizeof_component == MGL_INVALID_ENUM) return;
-	if (datatype == GL_DOUBLE && mgl.downgrade) datatype = GL_FLOAT;
 	if (datatype == GL_DOUBLE && !mgl.VertexAttribLPointer) {
 		mgl_internal_log(MGL_ERROR_UNSUPPORTED, "Double attribute is not supported (%d, needs 41+)", mgl.version);
 		return;
@@ -4051,20 +4011,17 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 MGL_API void mglProgramBindBuffer(const mgl_program *program, const mgl_buffer *buffer, unsigned int binding_point, const char *name)
 {
 	GLuint driverloc;
-	GLenum underlying;
 
 	if (program->id == MGL_INVALID_ID || buffer->id == MGL_INVALID_ID) return;
 
-	underlying = mgl_internal_buffer_fwdctype(buffer->type);
-
-	if (underlying == GL_UNIFORM_BUFFER) {
+	if (buffer->type == GL_UNIFORM_BUFFER) {
 		driverloc = mgl.GetUniformBlockIndex(program->id, name);
 		if (driverloc == GL_INVALID_INDEX) {
 			mgl_internal_log(MGL_ERROR_INVALID_UNIFORM, "Uniform block name '%s' does not match any uniform block in program %u (bind %u, max %d)", name, program->id, binding_point, mgl.max_ubos);
 			return;
 		}
 		mgl.UniformBlockBinding(program->id, driverloc, binding_point);
-	} else if (underlying == GL_SHADER_STORAGE_BUFFER) {
+	} else if (buffer->type == GL_SHADER_STORAGE_BUFFER) {
 		driverloc = mgl.GetProgramResourceIndex(program->id, GL_SHADER_STORAGE_BLOCK, name);
 		if (driverloc == GL_INVALID_INDEX) {
 			mgl_internal_log(MGL_ERROR_INVALID_UNIFORM, "Shader storage block name '%s' does not match any shader storage block in program %u (bind %u, max %d)", name, program->id, binding_point, mgl.max_ssbos);
@@ -4080,7 +4037,7 @@ MGL_API void mglProgramBindBuffer(const mgl_program *program, const mgl_buffer *
 		return;
 	}
 
-	mgl.BindBufferBase(underlying, binding_point, buffer->id);
+	mgl.BindBufferBase(buffer->type, binding_point, buffer->id);
 }
 
 MGL_API int mglLocateAttribute(const mgl_program *program, const char *name)
@@ -4118,28 +4075,20 @@ MGL_API mgl_uniform mglLocateUniform(const mgl_program *program, const char *nam
 }
 MGL_API void mglSetUniform(const mgl_program *program, const mgl_uniform *uniform, unsigned int arraycount, const void *data)
 {
-	GLint ucount = arraycount == 0 ? 1 : (int)arraycount, uloc = (int)uniform->location - 1;
-	GLenum utype = uniform->type, original = utype;
-	unsigned int i;
-
+	GLint ucount, uloc;
 	if (program->id == MGL_INVALID_ID || uniform->location == MGL_INVALID_ID) return;
 
-	if (mgl.downgrade && (utype = mgl_internal_type_downgrade(uniform->type)) != original) {
-		float *downgraded = (float *)malloc(sizeof(float) * arraycount);
-		if (!downgraded) return;
-		for (i = 0; i < arraycount; ++i) downgraded[i] = (float)(((const double *)data)[i]);
-		free(downgraded);
-	}
-
+	ucount = arraycount == 0 ? 1 : (int)arraycount;
+	uloc = (int)uniform->location - 1;
 	mgl.UseProgram(program->id);
 
-	switch (utype) {
-		case GL_SAMPLER_1D: case GL_SAMPLER_2D: case GL_SAMPLER_3D:
-		case GL_SAMPLER_1D_ARRAY: case GL_SAMPLER_2D_ARRAY:
+	switch (uniform->type) {
+		case GL_SAMPLER_1D: FALLTHROUGH case GL_SAMPLER_2D: FALLTHROUGH case GL_SAMPLER_3D: FALLTHROUGH
+		case GL_SAMPLER_1D_ARRAY: FALLTHROUGH case GL_SAMPLER_2D_ARRAY: FALLTHROUGH
 		case GL_BOOL: case GL_INT: mgl.Uniform1iv(uloc, ucount, (const GLint *)data); break;
-		case GL_BOOL_VEC2: case GL_INT_VEC2: mgl.Uniform2iv(uloc, ucount, (const GLint *)data); break;
-		case GL_BOOL_VEC3: case GL_INT_VEC3: mgl.Uniform3iv(uloc, ucount, (const GLint *)data); break;
-		case GL_BOOL_VEC4: case GL_INT_VEC4: mgl.Uniform4iv(uloc, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC2: FALLTHROUGH case GL_INT_VEC2: mgl.Uniform2iv(uloc, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC3: FALLTHROUGH case GL_INT_VEC3: mgl.Uniform3iv(uloc, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC4: FALLTHROUGH case GL_INT_VEC4: mgl.Uniform4iv(uloc, ucount, (const GLint *)data); break;
 		case GL_UNSIGNED_INT: mgl.Uniform1uiv(uloc, ucount, (const GLuint *)data); break;
 		case GL_UNSIGNED_INT_VEC2: mgl.Uniform2uiv(uloc, ucount, (const GLuint *)data); break;
 		case GL_UNSIGNED_INT_VEC3: mgl.Uniform3uiv(uloc, ucount, (const GLuint *)data); break;

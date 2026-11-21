@@ -28,8 +28,8 @@
 typedef enum {
 	/* Polygon fill mode values. MGL_POLYGON_FILL by default. */
 	MGL_POLYGON_POINTS, MGL_POLYGON_LINES, MGL_POLYGON_FILL,
-	/* Depth feature values. Disabled by default - recommended enabled value is MGL_DEPTH_LESS. */
-	MGL_DEPTH_OFF, MGL_DEPTH_NEVER, MGL_DEPTH_LESS,
+	/* Depth feature values. Disabled by default - recommended and default enabled value is MGL_DEPTH_LESS. */
+	MGL_DEPTH_OFF, MGL_DEPTH_ON, MGL_DEPTH_NEVER, MGL_DEPTH_LESS,
 	MGL_DEPTH_EQUAL, MGL_DEPTH_LEQUAL, MGL_DEPTH_GREATER,
 	MGL_DEPTH_NEQUAL, MGL_DEPTH_GEQUAL, MGL_DEPTH_ALWAYS,
 	/* Blend feature values. Disabled by default - recommended enabled value is MGL_BLEND_1MSRCA.
@@ -49,8 +49,10 @@ typedef enum {
 	MGL_CULL_NONE_CW, MGL_CULL_BACK_CW, MGL_CULL_FRONT_CW, MGL_CULL_FRONTBACK_CW,
 	/* Whether a drawn point's size can be modified in shaders via gl_PointSize. Disabled by default. */
 	MGL_POINTSIZE_OFF, MGL_POINTSIZE_ON,
-	/* Whether to downgrade any usage of the double type for uniforms or attributes to a float if it is not supported. */
-	MGL_DOWNGRADE_OFF, MGL_DOWNGRADE_ON
+	/* Whether to downgrade usage of unsupported features to one that is close enough.
+	   Currently, SSBOs can be downgraded to UBOs if not supported.
+	   By default, no downgrading is done and an error is generated for usage if not supported. */
+	MGL_DOWNGRADE_SSBO_OFF, MGL_DOWNGRADE_SSBO_ON
 } mgl_state;
 
 typedef enum {

@@ -169,9 +169,9 @@ int main(int argc, char **argv)
 	mglColor(MGL_COLOR_BLEND, 1.0f, 1.0f, 0.0f, 1.0f);
 	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);
 	mglColor(MGL_COLOR_TEXBORDER, 1.0f, 0.5f, 0.0f, 1.0f);
+	mglFeature(MGL_DOWNGRADE_SSBO_ON);
 	mglFeature(MGL_BLEND_1MSRCA);
 	mglFeature(MGL_CULL_BACK_CW);
-	mglFeature(MGL_DOWNGRADE_ON);
 
 	fb = mglCreateFramebuffer(wwidth, wheight);
 	fbtex = mglFramebufferTexture(&fb);
