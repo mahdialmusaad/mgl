@@ -86,17 +86,19 @@ typedef enum {
 
 typedef enum {
 	/* Red/single component image formats of varying underlying types. */
-	MGL_RED_U8, MGL_RED_I8, MGL_RED_U16, MGL_RED_I16, MGL_RED_U32, MGL_RED_I32, MGL_RED_FLOAT,
+	MGL_RED_U8, MGL_RED_I8, MGL_RED_U16, MGL_RED_I16, MGL_RED_U32, MGL_RED_I32, MGL_RED_F32,
 	/* Red-green/two-component image formats of varying underlying types. */
-	MGL_RG_U8, MGL_RG_I8, MGL_RG_U16, MGL_RG_I16, MGL_RG_U32, MGL_RG_I32, MGL_RG_FLOAT,
+	MGL_RG_U8, MGL_RG_I8, MGL_RG_U16, MGL_RG_I16, MGL_RG_U32, MGL_RG_I32, MGL_RG_F32,
 	/* RGB image formats of varying underlying types. */
-	MGL_RGB_U8, MGL_RGB_I8, MGL_RGB_U16, MGL_RGB_I16, MGL_RGB_U32, MGL_RGB_I32, MGL_RGB_FLOAT,
+	MGL_RGB_U8, MGL_RGB_I8, MGL_RGB_U16, MGL_RGB_I16, MGL_RGB_U32, MGL_RGB_I32, MGL_RGB_F32,
 	/* BGR image formats of varying underlying types. */
-	MGL_BGR_U8, MGL_BGR_I8, MGL_BGR_U16, MGL_BGR_I16, MGL_BGR_U32, MGL_BGR_I32, MGL_BGR_FLOAT,
+	MGL_BGR_U8, MGL_BGR_I8, MGL_BGR_U16, MGL_BGR_I16, MGL_BGR_U32, MGL_BGR_I32, MGL_BGR_F32,
 	/* RGBA image formats of varying underlying types. */
-	MGL_RGBA_U8, MGL_RGBA_I8, MGL_RGBA_U16, MGL_RGBA_I16, MGL_RGBA_U32, MGL_RGBA_I32, MGL_RGBA_FLOAT,
+	MGL_RGBA_U8, MGL_RGBA_I8, MGL_RGBA_U16, MGL_RGBA_I16, MGL_RGBA_U32, MGL_RGBA_I32, MGL_RGBA_F32,
 	/* BGRA image formats of varying underlying types. */
-	MGL_BGRA_U8, MGL_BGRA_I8, MGL_BGRA_U16, MGL_BGRA_I16, MGL_BGRA_U32, MGL_BGRA_I32, MGL_BGRA_FLOAT
+	MGL_BGRA_U8, MGL_BGRA_I8, MGL_BGRA_U16, MGL_BGRA_I16, MGL_BGRA_U32, MGL_BGRA_I32, MGL_BGRA_F32,
+	/* Use previous texture property for mglBufferTexture. */
+	MGL_TEXTURE_PROPERTY_AUTO = 0x7FFFFFF
 } mgl_color;
 
 typedef enum {
@@ -181,12 +183,18 @@ typedef enum {
 	MGL_TEXTURE_WRAP_REPEAT = 0x4,
 
 	/* Texture magnification and minification filter bit where the final color is
-	   the weighted average of nearby pixels.
+	   the weighted average of nearby pixels. Slower than nearest and produces a blurred output.
 	   This is the default scaling mode. */
-	MGL_TEXTURE_SCALING_LINEAR = 0x1000,
+	MGL_TEXTURE_SCALING_LINEAR = 0x100,
 	/* Texture magnification and minification filter bit where the final color is
 	   the closest pixel. Faster than linear, but produces a sharp/blocky output. */
-	MGL_TEXTURE_SCALING_NEAREST = 0x2000
+	MGL_TEXTURE_SCALING_NEAREST = 0x200,
+
+	/* Whether mipmaps should be created for this image (number of levels depends on size). */
+	MGL_TEXTURE_MIPMAPS = 0x1000,
+	/* Whether the texture's format and size is immutable.
+	   This makes uploading new pixel data faster, but the size and format cannot change. */
+	MGL_TEXTURE_IMMUTABLE = 0x2000
 } mgl_texfilter;
 
 typedef enum {
@@ -229,11 +237,11 @@ typedef enum {
 
 typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } mgl_datastore;
 typedef struct { unsigned int id, uniforms : 31, compute : 1; } mgl_program;
-typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
+typedef struct { unsigned int id, fmt : 16, filters : 16; } mgl_texture;
 typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
-typedef struct { unsigned int location; unsigned int type; } mgl_uniform;
+typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, tex, rbuf; } mgl_framebuffer;
-typedef struct { unsigned int id, meta; } mgl_texture;
+typedef struct { unsigned int location, type; } mgl_uniform;
 
 /* An indirect draw command typically stored as a list in a
    MGL_BUFFER_DRAW_INDIRECT buffer for drawing via mglDrawIndirect. */
@@ -261,8 +269,8 @@ typedef struct {
 
 /* Given enum is invalid. More details in error description. */
 #define MGL_ERROR_INVALID_ENUM -1
-/* Feature enum is invalid. It must be one of the values in the mgl_state enum. */
-#define MGL_ERROR_INVALID_FEATURE -2
+/* Attempted to modify property of immutable texture. */
+#define MGL_ERROR_IMMUTABLE -2
 /* The data store cannot store multiple buffers of the given type, or you gave a non-vertex buffer when modifying attributes.
    If you are trying to replace an existing index or indirect buffer, this is not supported.
    You can instead create a different data store with that buffer, or delete the existing ones. */
@@ -317,11 +325,15 @@ MGL_API void mglBufferDataPartial(const mgl_buffer *buffer, const void *data, si
 MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access);
 
 /* Create a texture with the specified information.
-   Internally, (e.g. when accessing in a shader), the texture is stored in an RGBA format;
-   the green and blue components will be 0.0 and the alpha component will be 1.0 if the source does not provide it.
-   The 'filters' parameter is made up of two parts: a bit describing the wrap mode and another describing the scaling mode.
-   You may not have multiple bits for each part. Defaults are used if a part has no corresponding bit set. */
-MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, unsigned int filters, mgl_color format);
+   Internally, the texture will be stored as an equivalent float type (i.e. MGL_*_F32),
+   so only the 'sampler2D' uniform type can be used in shaders to access them.
+   The 'filters' parameter is a bitfield made up MGL_TEXTURE_* enum bits.
+   Defaults are used for each 'category' of texture filter bits. */
+MGL_API mgl_texture mglCreateTexture(const void *pixels, mgl_color format, int width, int height, unsigned int filters);
+/* Buffer pixel data to the given texture.
+   If the texture is immutable, the format and dimensions must be the same.
+   You can specify MGL_TEXTURE_PROPERTY_AUTO for format, width and height to use the current value. */
+MGL_API void mglBufferTexture(mgl_texture *texture, const void *pixels, mgl_color format, int width, int height);
 /* Bind the given texture to a specific texture unit.
    To use this in shader code, use mglSetUniform with a sampler variable with a signed integer set to the same texture binding/unit. */
 MGL_API void mglBindTexture(const mgl_texture *texture, unsigned int binding);

@@ -239,7 +239,10 @@ int main(int argc, char **argv)
 	fbtexloc = mglLocateUniform(&program4, "tex");
 	invertloc = mglLocateUniform(&program4, "invert");
 
-	tex = mglCreateTexture(4, 2, texpixels, MGL_TEXTURE_SCALING_NEAREST | MGL_TEXTURE_WRAP_BORDER, MGL_RGB_U8);
+	tex = mglCreateTexture(texpixels, MGL_RGB_U8, 4, 2, MGL_TEXTURE_SCALING_NEAREST | MGL_TEXTURE_WRAP_BORDER | MGL_TEXTURE_IMMUTABLE);
+	mglBufferTexture(&tex, texpixels, MGL_RGB_U8, 4, 2);
+	printf("Error example: ");
+	mglBufferTexture(&tex, texpixels, MGL_RGB_U8, 3, 2);
 	mglBindTexture(&tex, texbinding);
 	mglSetUniform(&program2, &samplerloc, 1, &texbinding);
 	mglBindTexture(&fbtex, fbtexbinding);

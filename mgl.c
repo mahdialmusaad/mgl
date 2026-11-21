@@ -2141,10 +2141,10 @@ static mgl_uniform mgl_create_uniform(unsigned int location, unsigned int type)
 	ret.location = location; ret.type = type;
 	return ret;
 }
-static mgl_texture mgl_create_texture(unsigned int id, unsigned int meta)
+static mgl_texture mgl_create_texture(unsigned int id, unsigned int fmt, unsigned int filters)
 {
 	mgl_texture ret;
-	ret.id = id; ret.meta = meta;
+	ret.id = id; ret.fmt = fmt; ret.filters = filters;
 	return ret;
 }
 static mgl_framebuffer mgl_create_framebuffer(unsigned int id, unsigned int tex, unsigned int rbuf)
@@ -2152,6 +2152,13 @@ static mgl_framebuffer mgl_create_framebuffer(unsigned int id, unsigned int tex,
 	mgl_framebuffer fb;
 	fb.id = id; fb.tex = tex; fb.rbuf = rbuf;
 	return fb;
+}
+
+static int mgl_internal_log2(unsigned int x)
+{
+	int log = -1;
+	for (; x; ++log) x >>= 1;
+	return log;
 }
 
 #ifdef __GNUC__
@@ -2185,7 +2192,7 @@ static void APICALL mgl_internal_debug_callback(
 ) {
 	const char *sseverity, *stype;
 
-	if (id == 131185) return;
+	if (id == 131185 || id == 131169) return;
 
 	(void)length;
 	(void)source;
@@ -2465,42 +2472,43 @@ static GLenum mgl_internal_color_format(mgl_color type)
 		case MGL_RED_I16: FALLTHROUGH
 		case MGL_RED_U32: FALLTHROUGH
 		case MGL_RED_I32: FALLTHROUGH
-		case MGL_RED_FLOAT: return GL_RED;
+		case MGL_RED_F32: return GL_RED;
 		case MGL_RG_U8: FALLTHROUGH
 		case MGL_RG_I8: FALLTHROUGH
 		case MGL_RG_U16: FALLTHROUGH
 		case MGL_RG_I16: FALLTHROUGH
 		case MGL_RG_U32: FALLTHROUGH
 		case MGL_RG_I32: FALLTHROUGH
-		case MGL_RG_FLOAT: return GL_RG;
+		case MGL_RG_F32: return GL_RG;
 		case MGL_RGB_U8: FALLTHROUGH
 		case MGL_RGB_I8: FALLTHROUGH
 		case MGL_RGB_U16: FALLTHROUGH
 		case MGL_RGB_I16: FALLTHROUGH
 		case MGL_RGB_U32: FALLTHROUGH
 		case MGL_RGB_I32: FALLTHROUGH
-		case MGL_RGB_FLOAT: return GL_RGB;
+		case MGL_RGB_F32: return GL_RGB;
 		case MGL_BGR_U8: FALLTHROUGH
 		case MGL_BGR_I8: FALLTHROUGH
 		case MGL_BGR_U16: FALLTHROUGH
 		case MGL_BGR_I16: FALLTHROUGH
 		case MGL_BGR_U32: FALLTHROUGH
 		case MGL_BGR_I32: FALLTHROUGH
-		case MGL_BGR_FLOAT: return GL_BGR;
+		case MGL_BGR_F32: return GL_BGR;
 		case MGL_RGBA_U8: FALLTHROUGH
 		case MGL_RGBA_I8: FALLTHROUGH
 		case MGL_RGBA_U16: FALLTHROUGH
 		case MGL_RGBA_I16: FALLTHROUGH
 		case MGL_RGBA_U32: FALLTHROUGH
 		case MGL_RGBA_I32: FALLTHROUGH
-		case MGL_RGBA_FLOAT: return GL_RGBA;
+		case MGL_RGBA_F32: return GL_RGBA;
 		case MGL_BGRA_U8: FALLTHROUGH
 		case MGL_BGRA_I8: FALLTHROUGH
 		case MGL_BGRA_U16: FALLTHROUGH
 		case MGL_BGRA_I16: FALLTHROUGH
 		case MGL_BGRA_U32: FALLTHROUGH
 		case MGL_BGRA_I32: FALLTHROUGH
-		case MGL_BGRA_FLOAT: return GL_BGRA;
+		case MGL_BGRA_F32: return GL_BGRA;
+		case MGL_TEXTURE_PROPERTY_AUTO: FALLTHROUGH
 		default: MGL_INVALID_LOG("Invalid color format %u", type);
 	}
 }
@@ -2544,13 +2552,63 @@ static GLenum mgl_internal_color_type(mgl_color type)
 		case MGL_BGR_I32: FALLTHROUGH
 		case MGL_RGBA_I32: FALLTHROUGH
 		case MGL_BGRA_I32: return GL_INT;
-		case MGL_RED_FLOAT: FALLTHROUGH
-		case MGL_RG_FLOAT: FALLTHROUGH
-		case MGL_RGB_FLOAT: FALLTHROUGH
-		case MGL_BGR_FLOAT: FALLTHROUGH
-		case MGL_RGBA_FLOAT: FALLTHROUGH
-		case MGL_BGRA_FLOAT: return GL_FLOAT;
-		default: MGL_INVALID_LOG("Invalid color type %u", type);
+		case MGL_RED_F32: FALLTHROUGH
+		case MGL_RG_F32: FALLTHROUGH
+		case MGL_RGB_F32: FALLTHROUGH
+		case MGL_BGR_F32: FALLTHROUGH
+		case MGL_RGBA_F32: FALLTHROUGH
+		case MGL_BGRA_F32: return GL_FLOAT;
+		default: MGL_INVALID_LOG("Invalid color format (type) %u", type);
+	}
+}
+
+static GLenum mgl_internal_color_sized_type(mgl_color type)
+{
+	switch ((int)type) {
+		case MGL_RED_U8: FALLTHROUGH
+		case MGL_RED_I8: FALLTHROUGH
+		case MGL_RED_U16: FALLTHROUGH
+		case MGL_RED_I16: FALLTHROUGH
+		case MGL_RED_U32: FALLTHROUGH
+		case MGL_RED_I32: FALLTHROUGH
+		case MGL_RED_F32: return GL_R32F;
+		case MGL_RG_U8: FALLTHROUGH
+		case MGL_RG_I8: FALLTHROUGH
+		case MGL_RG_U16: FALLTHROUGH
+		case MGL_RG_I16: FALLTHROUGH
+		case MGL_RG_U32: FALLTHROUGH
+		case MGL_RG_I32: FALLTHROUGH
+		case MGL_RG_F32: return GL_RG32F;
+		case MGL_RGB_U8: FALLTHROUGH
+		case MGL_RGB_I8: FALLTHROUGH
+		case MGL_RGB_U16: FALLTHROUGH
+		case MGL_RGB_I16: FALLTHROUGH
+		case MGL_RGB_U32: FALLTHROUGH
+		case MGL_RGB_I32: FALLTHROUGH
+		case MGL_RGB_F32: FALLTHROUGH
+		case MGL_BGR_U8: FALLTHROUGH
+		case MGL_BGR_I8: FALLTHROUGH
+		case MGL_BGR_U16: FALLTHROUGH
+		case MGL_BGR_I16: FALLTHROUGH
+		case MGL_BGR_U32: FALLTHROUGH
+		case MGL_BGR_I32: FALLTHROUGH
+		case MGL_BGR_F32: return GL_RGB32F;
+		case MGL_RGBA_U8: FALLTHROUGH
+		case MGL_RGBA_I8: FALLTHROUGH
+		case MGL_RGBA_U16: FALLTHROUGH
+		case MGL_RGBA_I16: FALLTHROUGH
+		case MGL_RGBA_U32: FALLTHROUGH
+		case MGL_RGBA_I32: FALLTHROUGH
+		case MGL_RGBA_F32: FALLTHROUGH
+		case MGL_BGRA_U8: FALLTHROUGH
+		case MGL_BGRA_I8: FALLTHROUGH
+		case MGL_BGRA_U16: FALLTHROUGH
+		case MGL_BGRA_I16: FALLTHROUGH
+		case MGL_BGRA_U32: FALLTHROUGH
+		case MGL_BGRA_I32: FALLTHROUGH
+		case MGL_BGRA_F32: return GL_RGBA32F;
+		case MGL_TEXTURE_PROPERTY_AUTO: FALLTHROUGH
+		default: MGL_INVALID_LOG("Invalid color format (sized) %u", type);
 	}
 }
 
@@ -3622,7 +3680,7 @@ MGL_API void mglClear(unsigned int clearbits)
 }
 MGL_API void mglFeature(mgl_state state)
 {
-	if (state == MGL_DEPTH_OFF) mgl.Disable(GL_DEPTH);
+	if (state == MGL_DEPTH_OFF) mgl.Disable(GL_DEPTH_TEST);
 	else if (state == MGL_BLEND_OFF) mgl.Disable(GL_BLEND);
 	else if (state == MGL_POINTSIZE_ON) mgl.Enable(GL_PROGRAM_POINT_SIZE);
 	else if (state == MGL_POINTSIZE_OFF) mgl.Disable(GL_PROGRAM_POINT_SIZE);
@@ -3644,7 +3702,7 @@ MGL_API void mglFeature(mgl_state state)
 			mgl.Enable(GL_CULL_FACE);
 			mgl.CullFace(cullface);
 		} else mgl.Disable(GL_CULL_FACE);
-	} else mgl_internal_log(MGL_ERROR_INVALID_FEATURE, "Invalid feature state %u", state);
+	} else mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid feature state %u", state);
 }
 MGL_API void mglViewport(int x, int y, int width, int height)
 {
@@ -3699,21 +3757,30 @@ MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access)
 	return result;
 }
 
-MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, unsigned int filters, mgl_color format)
+MGL_API mgl_texture mglCreateTexture(const void *pixels, mgl_color format, int width, int height, unsigned int filters)
 {
 	GLuint texture;
-	GLenum utype = mgl_internal_color_type(format);
-	GLenum uformat = mgl_internal_color_format(format);
-	GLint wrap = mgl_internal_texture_wrap(filters);
-	GLint scaling = mgl_internal_texture_scaling(filters);
-	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return mgl_create_texture(MGL_INVALID_ID, 0);
+	GLenum utype, uformat, iformat;
+	GLint wrap, scaling, mips;
+
+	if (width <= 0 || height <= 0) return mgl_create_texture(MGL_INVALID_ID, 0, 0);
+
+	utype = mgl_internal_color_type(format);
+	uformat = mgl_internal_color_format(format);
+	iformat = mgl_internal_color_sized_type(format);
+
+	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM || iformat == MGL_INVALID_ENUM) return mgl_create_texture(MGL_INVALID_ID, 0, 0);
+
+	wrap = mgl_internal_texture_wrap(filters);
+	scaling = mgl_internal_texture_scaling(filters);
+	mips = filters & MGL_TEXTURE_MIPMAPS;
 
 	mgl.GenTextures(1, &texture);
 	mgl.BindTexture(GL_TEXTURE_2D, texture);
 
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? (pixels ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR) : (pixels ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
+	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? (mips ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR) : (mips ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, scaling);
 
 	if (wrap == GL_CLAMP_TO_BORDER) {
@@ -3725,10 +3792,51 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 		mgl.TexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, bordercols);
 	}
 
-	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, uformat, utype, pixels);
-	if (pixels) mgl.GenerateMipmap(GL_TEXTURE_2D);
+	if (mgl.TexStorage2D && (filters & MGL_TEXTURE_IMMUTABLE)) {
+		mgl.TexStorage2D(GL_TEXTURE_2D, 1 + (mgl_internal_log2((unsigned int)(width > height ? width : height))), iformat, width, height);
+		mgl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, uformat, utype, pixels);
+	} else mgl.TexImage2D(GL_TEXTURE_2D, 0, (GLint)iformat, width, height, 0, uformat, utype, pixels);
 
-	return mgl_create_texture(texture, format);
+	if (mips) mgl.GenerateMipmap(GL_TEXTURE_2D);
+	mgl.BindTexture(GL_TEXTURE_2D, 0);
+
+	return mgl_create_texture(texture, format, filters);
+}
+MGL_API void mglBufferTexture(mgl_texture *texture, const void *pixels, mgl_color format, int width, int height)
+{
+	int current_width, current_height, immutable;
+	GLenum utype, uformat, iformat;
+
+	if (!texture || !pixels || texture->id == MGL_INVALID_ID) return;
+	if (format == MGL_TEXTURE_PROPERTY_AUTO) format = (mgl_color)texture->fmt;
+
+	utype = mgl_internal_color_type(format);
+	uformat = mgl_internal_color_format(format);
+	iformat = mgl_internal_color_sized_type(format);
+
+	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM || iformat == MGL_INVALID_ENUM) return;
+
+	mgl.BindTexture(GL_TEXTURE_2D, texture->id);
+	mgl.GetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_WIDTH, &current_width);
+	mgl.GetTexLevelParameteriv(GL_TEXTURE_2D, 0, GL_TEXTURE_HEIGHT, &current_height);
+	mgl.BindTexture(GL_TEXTURE_2D, 0);
+
+	if (width == MGL_TEXTURE_PROPERTY_AUTO) width = current_width;
+	if (height == MGL_TEXTURE_PROPERTY_AUTO) height = current_height;
+
+	immutable = texture->filters & MGL_TEXTURE_IMMUTABLE;
+
+	if (immutable && (width != current_width || height != current_height || format != texture->fmt)) {
+		mgl_internal_log(MGL_ERROR_IMMUTABLE, "Tried to modify immutable texture property (got %dx%d,%u but stored %dx%d,%d)", width, height, format, current_width, current_height, texture->fmt);
+		return;
+	}
+
+	mgl.BindTexture(GL_TEXTURE_2D, texture->id);
+	if (immutable) mgl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, uformat, utype, pixels);
+	else mgl.TexImage2D(GL_TEXTURE_2D, 0, (GLint)iformat, width, height, 0, uformat, utype, pixels);
+	mgl.BindTexture(GL_TEXTURE_2D, 0);
+
+	texture->fmt = (unsigned int)format;
 }
 MGL_API void mglBindTexture(const mgl_texture *texture, unsigned int binding)
 {
@@ -3743,9 +3851,9 @@ MGL_API mgl_framebuffer mglCreateFramebuffer(int width, int height)
 	GLuint fb, rbuf;
 	mgl_texture tex;
 
-	if (!width && !height) return mgl_create_framebuffer(MGL_INVALID_ID, 0, 0);
+	if (width <= 0 || height <= 0) return mgl_create_framebuffer(MGL_INVALID_ID, 0, 0);
 
-	tex = mglCreateTexture(width, height, NULL, MGL_TEXTURE_WRAP_REPEAT | MGL_TEXTURE_SCALING_LINEAR, MGL_RGB_U8);
+	tex = mglCreateTexture(NULL, MGL_RGB_U8, width, height, MGL_TEXTURE_WRAP_REPEAT | MGL_TEXTURE_SCALING_LINEAR);
 
 	mgl.GenFramebuffers(1, &fb);
 	mgl.BindFramebuffer(GL_FRAMEBUFFER, fb);
@@ -3772,12 +3880,12 @@ MGL_API void mglUseFramebuffer(const mgl_framebuffer *fb)
 }
 MGL_API mgl_texture mglFramebufferTexture(const mgl_framebuffer *fb)
 {
-	return mgl_create_texture(fb->id, MGL_RGB_U8);
+	return mgl_create_texture(fb->id, MGL_RGB_U8, MGL_TEXTURE_WRAP_REPEAT | MGL_TEXTURE_SCALING_LINEAR);
 }
 MGL_API void mglResizeFramebuffer(mgl_framebuffer *fb, int width, int height)
 {
 	int istarget;
-	if (!fb || width == 0 || height == 0) return;
+	if (!fb || width <= 0 || height <= 0) return;
 	istarget = mgl.currentfb == fb->id;
 	mglDestroyFramebuffer(fb);
 	*fb = mglCreateFramebuffer(width, height);
