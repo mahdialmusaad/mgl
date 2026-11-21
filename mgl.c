@@ -25,6 +25,9 @@
 #include <string.h>
 #include <stdio.h>
 
+#undef MGL_API
+#define MGL_API
+
 #if defined(_WIN32) || defined(__WIN32__) || defined(WIN32) || defined(__MINGW32__)
 # define APICALL __stdcall
 #else
@@ -2096,19 +2099,54 @@ static struct mgl_pfn_s {
 	char pad[4];
 } mgl;
 
-#ifdef __GNUC__
+#ifdef __clang__
 # define FALLTHROUGH __attribute__((__fallthrough__));
 #else
-# define FALLTHROUGH
+# define FALLTHROUGH ;
 #endif
 
+#define FALLTHROUGH_INNER __attribute__((__fallthrough__));
 #define MGL_INVALID_ENUM 0x7FFFFFFF
-#define MGL_INVALID_RET(type) ((type){ MGL_INVALID_ID })
 
 #define MGL_EMPTY
-#define MGL_INVALID_LOG(msg, ...) do { mgl_internal_log(MGL_ERROR_INVALID_ENUM, msg, __VA_ARGS__); return MGL_INVALID_ENUM; } while (0)
-#define MGL_LOG_RETURN(ret, id, msg, ...) do { mgl_internal_log(id, msg, __VA_ARGS__); return ret; } while (0)
-#define MGL_WARN_ONCE(msg, ...) do { static int warn_L##__LINE__ = 0; if (!warn_L##__LINE__++) { mgl_internal_log(MGL_ERROR_MAYBE, msg, __VA_ARGS__); } return ret; } while (0)
+#define MGL_INVALID_LOG(msg, val) do { mgl_internal_log(MGL_ERROR_INVALID_ENUM, msg, val); return MGL_INVALID_ENUM; } while (0)
+
+static mgl_datastore mgl_create_datastore(unsigned int id, unsigned int indirect, unsigned int indexsz, unsigned int instanced)
+{
+	mgl_datastore ret;
+	ret.id = id; ret.indirect = indirect; ret.indexsz = indexsz; ret.instanced = instanced;
+	return ret;
+}
+static mgl_program mgl_create_program(unsigned int id, unsigned int uniforms, unsigned int compute)
+{
+	mgl_program ret;
+	ret.id = id; ret.uniforms = uniforms; ret.compute = compute;
+	return ret;
+}
+static mgl_buffer mgl_create_buffer(unsigned int id, unsigned int type, unsigned int indexsz)
+{
+	mgl_buffer ret;
+	ret.id = id; ret.type = type; ret.indexsz = indexsz;
+	return ret;
+}
+static mgl_shader mgl_create_shader(unsigned int id, unsigned int type, unsigned int fragile)
+{
+	mgl_shader ret;
+	ret.id = id; ret.type = type; ret.fragile = fragile;
+	return ret;
+}
+static mgl_uniform mgl_create_uniform(unsigned int location, unsigned int type)
+{
+	mgl_uniform ret;
+	ret.location = location; ret.type = type;
+	return ret;
+}
+static mgl_texture mgl_create_texture(unsigned int id, unsigned int meta)
+{
+	mgl_texture ret;
+	ret.id = id; ret.meta = meta;
+	return ret;
+}
 
 #ifdef __GNUC__
 __attribute__((__format__ (__printf__, 2, 3)))
@@ -2117,15 +2155,17 @@ __attribute__((__format__ (__printf__, 2, 3)))
 static void mgl_internal_log(int id, const char *fmt, ...)
 {
 	va_list l;
+	char buffer[4096];
 
 	if (!mgl.user_debug) return;
 	va_start(l, fmt);
 
-	{
-		char buffer[4096];
-		vsnprintf(buffer, sizeof buffer, fmt, l);
-		mgl.user_debug(id, buffer);
-	}
+#ifdef __STDC_VERSION__
+	vsnprintf(buffer, sizeof buffer, fmt, l);
+#else
+	vsprintf(buffer, fmt, l);
+#endif
+	mgl.user_debug(id, buffer);
 
 	va_end(l);
 }
@@ -2479,7 +2519,7 @@ static GLenum mgl_internal_color_type(mgl_color type)
 		case MGL_RGB_U16: FALLTHROUGH
 		case MGL_BGR_U16: FALLTHROUGH
 		case MGL_RGBA_U16: FALLTHROUGH
-		case MGL_BGRA_U16:  return GL_UNSIGNED_SHORT;
+		case MGL_BGRA_U16: return GL_UNSIGNED_SHORT;
 		case MGL_RED_I16: FALLTHROUGH
 		case MGL_RG_I16: FALLTHROUGH
 		case MGL_RGB_I16: FALLTHROUGH
@@ -2515,7 +2555,7 @@ static GLint mgl_internal_texture_wrap(unsigned int bits)
 	if (bits & MGL_TEXTURE_WRAP_CLAMP) { chosen = GL_CLAMP_TO_EDGE; ++nbits; }
 	if (bits & MGL_TEXTURE_WRAP_BORDER) { chosen = GL_CLAMP_TO_BORDER; ++nbits; }
 	if (bits & MGL_TEXTURE_WRAP_REPEAT) { chosen = GL_REPEAT; ++nbits; }
-	if (nbits != 1) MGL_INVALID_LOG("Invalid texture wrap bits %u (%u set)", bits, nbits);
+	if (nbits != 1) MGL_INVALID_LOG("Invalid texture wrap bits %u", bits);
 	return chosen;
 }
 
@@ -2525,7 +2565,7 @@ static GLint mgl_internal_texture_scaling(unsigned int bits)
 	unsigned int nbits = 0;
 	if (bits & MGL_TEXTURE_SCALING_LINEAR) { chosen = GL_LINEAR; ++nbits; }
 	if (bits & MGL_TEXTURE_SCALING_NEAREST) { chosen = GL_NEAREST; ++nbits; }
-	if (nbits != 1) MGL_INVALID_LOG("Invalid texture scaling bits %u (%u set)", bits, nbits);
+	if (nbits != 1) MGL_INVALID_LOG("Invalid texture scaling bits %u", bits);
 	return chosen;
 }
 
@@ -2791,7 +2831,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.MultiDrawElementsIndirectCount = (void(APICALL *)(GLenum, GLenum, const void *, GLintptr, GLsizei, GLsizei))load("glMultiDrawElementsIndirectCount");
 		mgl.PolygonOffsetClamp = (void(APICALL *)(GLfloat, GLfloat, GLfloat))load("glPolygonOffsetClamp");
 		mgl.SpecializeShader = (void(APICALL *)(GLuint, const GLchar *, GLuint, const GLuint *, const GLuint *))load("glSpecializeShader");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 45:
 		mgl.BindTextureUnit = (void(APICALL *)(GLuint, GLuint))load("glBindTextureUnit");
 		mgl.BlitNamedFramebuffer = (void(APICALL *)(GLuint, GLuint, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLint, GLbitfield, GLenum))load("glBlitNamedFramebuffer");
@@ -2903,7 +2943,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.VertexArrayElementBuffer = (void(APICALL *)(GLuint, GLuint))load("glVertexArrayElementBuffer");
 		mgl.VertexArrayVertexBuffer = (void(APICALL *)(GLuint, GLuint, GLuint, GLintptr, GLsizei))load("glVertexArrayVertexBuffer");
 		mgl.VertexArrayVertexBuffers = (void(APICALL *)(GLuint, GLuint, GLsizei, const GLuint *, const GLintptr *, const GLsizei *))load("glVertexArrayVertexBuffers");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 44:
 		mgl.BindBuffersBase = (void(APICALL *)(GLenum, GLuint, GLsizei, const GLuint *))load("glBindBuffersBase");
 		mgl.BindBuffersRange = (void(APICALL *)(GLenum, GLuint, GLsizei, const GLuint *, const GLintptr *, const GLsizeiptr *))load("glBindBuffersRange");
@@ -2914,7 +2954,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.BufferStorage = (void(APICALL *)(GLenum, GLsizeiptr, const void *, GLbitfield))load("glBufferStorage");
 		mgl.ClearTexImage = (void(APICALL *)(GLuint, GLint, GLenum, GLenum, const void *))load("glClearTexImage");
 		mgl.ClearTexSubImage = (void(APICALL *)(GLuint, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const void *))load("glClearTexSubImage");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 43:
 		mgl.BindVertexBuffer = (void(APICALL *)(GLuint, GLuint, GLintptr, GLsizei))load("glBindVertexBuffer");
 		mgl.ClearBufferData = (void(APICALL *)(GLenum, GLenum, GLenum, GLenum, const void *))load("glClearBufferData");
@@ -2960,7 +3000,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.VertexAttribIFormat = (void(APICALL *)(GLuint, GLint, GLenum, GLuint))load("glVertexAttribIFormat");
 		mgl.VertexAttribLFormat = (void(APICALL *)(GLuint, GLint, GLenum, GLuint))load("glVertexAttribLFormat");*/
 		mgl.VertexBindingDivisor = (void(APICALL *)(GLuint, GLuint))load("glVertexBindingDivisor");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 42:
 		mgl.BindImageTexture = (void(APICALL *)(GLuint, GLuint, GLint, GLboolean, GLint, GLenum, GLenum))load("glBindImageTexture");
 		mgl.DrawArraysInstancedBaseInstance = (void(APICALL *)(GLenum, GLint, GLsizei, GLsizei, GLuint))load("glDrawArraysInstancedBaseInstance");
@@ -2974,7 +3014,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.TexStorage1D = (void(APICALL *)(GLenum, GLsizei, GLenum, GLsizei))load("glTexStorage1D");
 		mgl.TexStorage2D = (void(APICALL *)(GLenum, GLsizei, GLenum, GLsizei, GLsizei))load("glTexStorage2D");
 		mgl.TexStorage3D = (void(APICALL *)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLsizei))load("glTexStorage3D");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 41:
 		mgl.ActiveShaderProgram = (void(APICALL *)(GLuint, GLuint))load("glActiveShaderProgram");
 		mgl.BindProgramPipeline = (void(APICALL *)(GLuint))load("glBindProgramPipeline");
@@ -3064,7 +3104,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.ViewportArrayv = (void(APICALL *)(GLuint, GLsizei, const GLfloat *))load("glViewportArrayv");
 		mgl.ViewportIndexedf = (void(APICALL *)(GLuint, GLfloat, GLfloat, GLfloat, GLfloat))load("glViewportIndexedf");
 		mgl.ViewportIndexedfv = (void(APICALL *)(GLuint, const GLfloat *))load("glViewportIndexedfv");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 40:
 		mgl.BeginQueryIndexed = (void(APICALL *)(GLenum, GLuint, GLuint))load("glBeginQueryIndexed");
 		mgl.BindTransformFeedback = (void(APICALL *)(GLenum, GLuint))load("glBindTransformFeedback");
@@ -3112,7 +3152,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.UniformMatrix4x2dv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLdouble *))load("glUniformMatrix4x2dv");
 		mgl.UniformMatrix4x3dv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLdouble *))load("glUniformMatrix4x3dv");
 		mgl.UniformSubroutinesuiv = (void(APICALL *)(GLenum, GLsizei, const GLuint *))load("glUniformSubroutinesuiv");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 33:
 		mgl.BindFragDataLocationIndexed = (void(APICALL *)(GLuint, GLuint, GLuint, const GLchar *))load("glBindFragDataLocationIndexed");
 		mgl.BindSampler = (void(APICALL *)(GLuint, GLuint))load("glBindSampler");
@@ -3142,7 +3182,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.VertexAttribP3uiv = (void(APICALL *)(GLuint, GLenum, GLboolean, const GLuint *))load("glVertexAttribP3uiv");
 		mgl.VertexAttribP4ui = (void(APICALL *)(GLuint, GLenum, GLboolean, GLuint))load("glVertexAttribP4ui");
 		mgl.VertexAttribP4uiv = (void(APICALL *)(GLuint, GLenum, GLboolean, const GLuint *))load("glVertexAttribP4uiv");*/
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 32:
 		mgl.ClientWaitSync = (GLenum(APICALL *)(GLsync, GLbitfield, GLuint64))load("glClientWaitSync");
 		mgl.DeleteSync = (void(APICALL *)(GLsync))load("glDeleteSync");
@@ -3163,7 +3203,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.TexImage2DMultisample = (void(APICALL *)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLboolean))load("glTexImage2DMultisample");
 		mgl.TexImage3DMultisample = (void(APICALL *)(GLenum, GLsizei, GLenum, GLsizei, GLsizei, GLsizei, GLboolean))load("glTexImage3DMultisample");
 		mgl.WaitSync = (void(APICALL *)(GLsync, GLbitfield, GLuint64))load("glWaitSync");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 31:
 		mgl.BindBufferBase = (void(APICALL *)(GLenum, GLuint, GLuint))load("glBindBufferBase");
 		mgl.BindBufferRange = (void(APICALL *)(GLenum, GLuint, GLuint, GLintptr, GLsizeiptr))load("glBindBufferRange");
@@ -3180,7 +3220,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.PrimitiveRestartIndex = (void(APICALL *)(GLuint))load("glPrimitiveRestartIndex");
 		mgl.TexBuffer = (void(APICALL *)(GLenum, GLenum, GLuint))load("glTexBuffer");
 		mgl.UniformBlockBinding = (void(APICALL *)(GLuint, GLuint, GLuint))load("glUniformBlockBinding");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 30:
 		mgl.BeginConditionalRender = (void(APICALL *)(GLuint, GLenum))load("glBeginConditionalRender");
 		mgl.BeginTransformFeedback = (void(APICALL *)(GLenum))load("glBeginTransformFeedback");
@@ -3266,7 +3306,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.VertexAttribI4uiv = (void(APICALL *)(GLuint, const GLuint *))load("glVertexAttribI4uiv");
 		mgl.VertexAttribI4usv = (void(APICALL *)(GLuint, const GLushort *))load("glVertexAttribI4usv");*/
 		mgl.VertexAttribIPointer = (void(APICALL *)(GLuint, GLint, GLenum, GLsizei, const void *))load("glVertexAttribIPointer");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 21:
 		mgl.UniformMatrix2x3fv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLfloat *))load("glUniformMatrix2x3fv");
 		mgl.UniformMatrix2x4fv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLfloat *))load("glUniformMatrix2x4fv");
@@ -3274,7 +3314,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.UniformMatrix3x4fv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLfloat *))load("glUniformMatrix3x4fv");
 		mgl.UniformMatrix4x2fv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLfloat *))load("glUniformMatrix4x2fv");
 		mgl.UniformMatrix4x3fv = (void(APICALL *)(GLint, GLsizei, GLboolean, const GLfloat *))load("glUniformMatrix4x3fv");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 20:
 		mgl.AttachShader = (void(APICALL *)(GLuint, GLuint))load("glAttachShader");
 		mgl.BindAttribLocation = (void(APICALL *)(GLuint, GLuint, const GLchar *))load("glBindAttribLocation");
@@ -3369,7 +3409,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.VertexAttrib4uiv = (void(APICALL *)(GLuint, const GLuint *))load("glVertexAttrib4uiv");
 		mgl.VertexAttrib4usv = (void(APICALL *)(GLuint, const GLushort *))load("glVertexAttrib4usv");*/
 		mgl.VertexAttribPointer = (void(APICALL *)(GLuint, GLint, GLenum, GLboolean, GLsizei, const void *))load("glVertexAttribPointer");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 15:
 		mgl.BeginQuery = (void(APICALL *)(GLenum, GLuint))load("glBeginQuery");
 		mgl.BindBuffer = (void(APICALL *)(GLenum, GLuint))load("glBindBuffer");
@@ -3390,7 +3430,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.IsQuery = (GLboolean(APICALL *)(GLuint))load("glIsQuery");
 		mgl.MapBuffer = (void *(APICALL *)(GLenum, GLenum))load("glMapBuffer");
 		mgl.UnmapBuffer = (GLboolean(APICALL *)(GLenum))load("glUnmapBuffer");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 14:
 		mgl.BlendColor = (void(APICALL *)(GLfloat, GLfloat, GLfloat, GLfloat))load("glBlendColor");
 		mgl.BlendEquation = (void(APICALL *)(GLenum))load("glBlendEquation");
@@ -3401,7 +3441,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.PointParameterfv = (void(APICALL *)(GLenum, const GLfloat *))load("glPointParameterfv");
 		mgl.PointParameteri = (void(APICALL *)(GLenum, GLint))load("glPointParameteri");
 		mgl.PointParameteriv = (void(APICALL *)(GLenum, const GLint *))load("glPointParameteriv");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 13:
 		mgl.ActiveTexture = (void(APICALL *)(GLenum))load("glActiveTexture");
 		mgl.CompressedTexImage1D = (void(APICALL *)(GLenum, GLint, GLenum, GLsizei, GLint, GLsizei, const void *))load("glCompressedTexImage1D");
@@ -3412,13 +3452,13 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.CompressedTexSubImage3D = (void(APICALL *)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLsizei, const void *))load("glCompressedTexSubImage3D");
 		mgl.GetCompressedTexImage = (void(APICALL *)(GLenum, GLint, void *))load("glGetCompressedTexImage");
 		mgl.SampleCoverage = (void(APICALL *)(GLfloat, GLboolean))load("glSampleCoverage");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 12:
 		mgl.CopyTexSubImage3D = (void(APICALL *)(GLenum, GLint, GLint, GLint, GLint, GLint, GLint, GLsizei, GLsizei))load("glCopyTexSubImage3D");
 		mgl.DrawRangeElements = (void(APICALL *)(GLenum, GLuint, GLuint, GLsizei, GLenum, const void *))load("glDrawRangeElements");
 		mgl.TexImage3D = (void(APICALL *)(GLenum, GLint, GLint, GLsizei, GLsizei, GLsizei, GLint, GLenum, GLenum, const void *))load("glTexImage3D");
 		mgl.TexSubImage3D = (void(APICALL *)(GLenum, GLint, GLint, GLint, GLint, GLsizei, GLsizei, GLsizei, GLenum, GLenum, const void *))load("glTexSubImage3D");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 11:
 		mgl.BindTexture = (void(APICALL *)(GLenum, GLuint))load("glBindTexture");
 		mgl.CopyTexImage1D = (void(APICALL *)(GLenum, GLint, GLenum, GLint, GLint, GLsizei, GLint))load("glCopyTexImage1D");
@@ -3434,7 +3474,7 @@ MGL_API int mglInit(void (*load(const char *))(void))
 		mgl.PolygonOffset = (void(APICALL *)(GLfloat, GLfloat))load("glPolygonOffset");
 		mgl.TexSubImage1D = (void(APICALL *)(GLenum, GLint, GLint, GLsizei, GLenum, GLenum, const void *))load("glTexSubImage1D");
 		mgl.TexSubImage2D = (void(APICALL *)(GLenum, GLint, GLint, GLint, GLsizei, GLsizei, GLenum, GLenum, const void *))load("glTexSubImage2D");
-		FALLTHROUGH
+		FALLTHROUGH_INNER
 	case 10:
 		mgl.BlendFunc = (void(APICALL *)(GLenum, GLenum))load("glBlendFunc");
 		mgl.Clear = (void(APICALL *)(GLbitfield))load("glClear");
@@ -3598,7 +3638,7 @@ MGL_API void mglFeature(mgl_state state)
 			mgl.Enable(GL_CULL_FACE);
 			mgl.CullFace(cullface);
 		} else mgl.Disable(GL_CULL_FACE);
-	} else MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_FEATURE, "Invalid feature state %u", state);
+	} else mgl_internal_log(MGL_ERROR_INVALID_FEATURE, "Invalid feature state %u", state);
 }
 MGL_API void mglViewport(int x, int y, int width, int height)
 {
@@ -3609,9 +3649,9 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type)
 {
 	GLuint buf;
 	GLenum buftype = mgl_internal_buffer_type(type);
-	if (buftype == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_buffer);
+	if (buftype == MGL_INVALID_ENUM) return mgl_create_buffer(MGL_INVALID_ID, 0, 0);
 	mgl.GenBuffers(1, &buf);
-	return (mgl_buffer){ buf, buftype, mgl_internal_buffer_index_id(type) };
+	return mgl_create_buffer(buf, buftype, mgl_internal_buffer_index_id(type));
 }
 MGL_API void mglBufferData(mgl_buffer buffer, mgl_usage usage, const void *data, size_t bytes)
 {
@@ -3659,7 +3699,7 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 	GLenum uformat = mgl_internal_color_format(format);
 	GLint wrap = mgl_internal_texture_wrap(filters);
 	GLint scaling = mgl_internal_texture_scaling(filters);
-	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_texture);
+	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return mgl_create_texture(MGL_INVALID_ID, 0);
 
 	mgl.GenTextures(1, &texture);
 	mgl.BindTexture(GL_TEXTURE_2D, texture);
@@ -3669,12 +3709,19 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_NEAREST);
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, scaling);
 
-	if (wrap == GL_CLAMP_TO_BORDER) mgl.TexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, (float[4]){ mgl.texbordercol.r, mgl.texbordercol.g, mgl.texbordercol.b, mgl.texbordercol.a });
+	if (wrap == GL_CLAMP_TO_BORDER) {
+		float bordercols[4];
+		bordercols[0] = mgl.texbordercol.r;
+		bordercols[1] = mgl.texbordercol.g;
+		bordercols[2] = mgl.texbordercol.b;
+		bordercols[3] = mgl.texbordercol.a;
+		mgl.TexParameterfv(GL_TEXTURE_2D, GL_TEXTURE_BORDER_COLOR, bordercols);
+	}
 
 	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, uformat, utype, pixels);
 	mgl.GenerateMipmap(GL_TEXTURE_2D);
 
-	return (mgl_texture){ texture, format };
+	return mgl_create_texture(texture, format);
 }
 MGL_API void mglBindTexture(mgl_texture texture, unsigned int binding)
 {
@@ -3687,22 +3734,24 @@ MGL_API mgl_datastore mglCreateDataStore(void)
 {
 	GLuint ds;
 	mgl.GenVertexArrays(1, &ds);
-	return (mgl_datastore){ ds, 0, 0, 0 };
+	return mgl_create_datastore(ds, 0, 0, 0);
 }
 MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, mgl_buffer buffer)
 {
 	if (!ds || ds->id == MGL_INVALID_ID || buffer.id == MGL_INVALID_ID) return;
 
-	if (
-	    buffer.type != GL_ELEMENT_ARRAY_BUFFER &&
-	    buffer.type != GL_DRAW_INDIRECT_BUFFER
-	) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "You cannot add this type of buffer to the data store (DSID %u | BID %u, %u)", ds->id, buffer.id, (unsigned int)buffer.type);
+	if (buffer.type != GL_ELEMENT_ARRAY_BUFFER && buffer.type != GL_DRAW_INDIRECT_BUFFER) {
+		mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "You cannot add this type of buffer to the data store (DSID %u | BID %u, %u)", ds->id, buffer.id, (unsigned int)buffer.type);
+		return;
+	}
 
 	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER) {
-		if (ds->indexsz) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "The data store already has an index buffer (DSID %u | BID %u, %u)", ds->id, buffer.id, (unsigned int)buffer.type);
-		else ds->indexsz = buffer.indexsz;
+		if (ds->indexsz) {
+			mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "The data store already has an index buffer (DSID %u | BID %u, %u)", ds->id, buffer.id, (unsigned int)buffer.type);
+			return;
+		} else ds->indexsz = buffer.indexsz;
 	} else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) {
-		if (ds->indirect) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "The data store already has an indirect buffer (DSID %u | BID %u, %u)", ds->id, buffer.id, (unsigned int)buffer.type);
+		if (ds->indirect) mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "The data store already has an indirect buffer (DSID %u | BID %u, %u)", ds->id, buffer.id, (unsigned int)buffer.type);
 		else ds->indirect = buffer.id;
 		return;
 	}
@@ -3716,11 +3765,14 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, int ind
 {
 	GLenum datatype;
 	size_t sizeof_component;
-	unsigned int indices;
+	unsigned int indices, i;
 	GLint components;
 
 	if (index == -1 || !ds || ds->id == MGL_INVALID_ID || buffer.id == MGL_INVALID_ID) return;
-	if (buffer.type != GL_ARRAY_BUFFER) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_BUFFER_TYPE, "You cannot set an attribute with a non-vertex buffer (BID %u, %u)", buffer.id, (unsigned int)buffer.type);
+	if (buffer.type != GL_ARRAY_BUFFER) {
+		mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "You cannot set an attribute with a non-vertex buffer (BID %u, %u)", buffer.id, (unsigned int)buffer.type);
+		return;
+	}
 
 	datatype = mgl_internal_data_type(type);
 	sizeof_component = mgl_internal_underlying_type_size(datatype);
@@ -3729,12 +3781,15 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, mgl_buffer buffer, int ind
 
 	if (components == MGL_INVALID_ENUM || indices == MGL_INVALID_ENUM || datatype == MGL_INVALID_ENUM || sizeof_component == MGL_INVALID_ENUM) return;
 	if (datatype == GL_DOUBLE && mgl.downgrade) datatype = GL_FLOAT;
-	if (datatype == GL_DOUBLE && !mgl.VertexAttribLPointer) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_UNSUPPORTED, "Double attribute is not supported (%d, needs 41+)", mgl.version);
+	if (datatype == GL_DOUBLE && !mgl.VertexAttribLPointer) {
+		mgl_internal_log(MGL_ERROR_UNSUPPORTED, "Double attribute is not supported (%d, needs 41+)", mgl.version);
+		return;
+	}
 
 	mgl.BindVertexArray(ds->id);
 	mgl.BindBuffer(GL_ARRAY_BUFFER, buffer.id);
 
-	for (unsigned int i = 0; i < indices; ++i) {
+	for (i = 0; i < indices; ++i) {
 		unsigned int point = (unsigned int)index + i;
 		const void *foffset = (const void *)(offset + (size_t)components * sizeof_component * i);
 		GLsizei fstride = (GLsizei)stride;
@@ -3761,11 +3816,17 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 	GLint success;
 	GLuint id;
 
-	if (!sources || nsources <= 0) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_shader), MGL_ERROR_GLSL, "Invalid shader sources or sources count given (%p, count %d)", (void *)sources, nsources);
-	if (basetype == GL_COMPUTE_SHADER && !mgl.DispatchCompute) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_shader), MGL_ERROR_UNSUPPORTED, "Compute shaders are not supported (%d, needs 43+)", mgl.version);
+	if (!sources || nsources <= 0) {
+		mgl_internal_log(MGL_ERROR_GLSL, "Invalid shader sources or sources count given (%p, count %d)", (void *)sources, nsources);
+		return mgl_create_shader(MGL_INVALID_ID, 0, 0);
+	}
+	if (basetype == GL_COMPUTE_SHADER && !mgl.DispatchCompute) {
+		mgl_internal_log(MGL_ERROR_UNSUPPORTED, "Compute shaders are not supported (%d, needs 43+)", mgl.version);
+		return mgl_create_shader(MGL_INVALID_ID, 0, 0);
+	}
 
 	stype = mgl_internal_shader_type(basetype);
-	if (stype == MGL_INVALID_ENUM) return MGL_INVALID_RET(mgl_shader);
+	if (stype == MGL_INVALID_ENUM) return mgl_create_shader(MGL_INVALID_ID, 0, 0);
 
 	id = mgl.CreateShader(stype);
 	mgl.ShaderSource(id, nsources, sources, NULL);
@@ -3777,31 +3838,38 @@ MGL_API mgl_shader mglCreateShader(mgl_shadertype type, const char **sources, in
 	if (!success) {
 		char buffer[2048];
 		mgl.GetShaderInfoLog(id, sizeof buffer, NULL, buffer);
-		MGL_LOG_RETURN(MGL_INVALID_RET(mgl_shader), MGL_ERROR_GLSL, "Shader creation error: %s", buffer);
+		mgl_internal_log(MGL_ERROR_GLSL, "Shader creation error: %s", buffer);
+		return mgl_create_shader(MGL_INVALID_ID, 0, 0);
 	}
 
-	return (mgl_shader){ id, stype, fragile };
+	return mgl_create_shader(id, stype, fragile);
 }
 MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 {
 	GLuint program;
 	unsigned int shaders_bits = 0;
-	GLint success, uniforms;
+	GLint success, uniforms, i;
 
-	if (!shaders) return MGL_INVALID_RET(mgl_program);
+	if (!shaders) return mgl_create_program(MGL_INVALID_ID, 0, 0);
 
-	for (int i = 0; i < nshaders; ++i) {
-		if (shaders[i].id == 0) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "All given shaders must be valid to create a program (%d given, index %d invalid)", nshaders, i);
+	for (i = 0; i < nshaders; ++i) {
+		if (shaders[i].id == 0) {
+			mgl_internal_log(MGL_ERROR_GLSL, "All given shaders must be valid to create a program (%d given, index %d invalid)", nshaders, i);
+			return mgl_create_program(MGL_INVALID_ID, 0, 0);
+		}
 		shaders_bits |= shaders[i].type == GL_COMPUTE_SHADER ? 0x1 : 0x2;
 	}
-	if (shaders_bits == (0x1 | 0x2)) MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "A program cannot have compute shader(s) alongside other shaders (%d shaders given, expected compute only)", nshaders);
+	if (shaders_bits == (0x1 | 0x2)) {
+		mgl_internal_log(MGL_ERROR_GLSL, "A program cannot have compute shader(s) alongside other shaders (%d shaders given, expected compute only)", nshaders);
+		return mgl_create_program(MGL_INVALID_ID, 0, 0);
+	}
 
 	program = mgl.CreateProgram();
 
-	for (int i = 0; i < nshaders; ++i) mgl.AttachShader(program, shaders[i].id);
+	for (i = 0; i < nshaders; ++i) mgl.AttachShader(program, shaders[i].id);
 	mgl.LinkProgram(program);
-	for (int i = 0; i < nshaders; ++i) mgl.DetachShader(program, shaders[i].id);
-	for (int i = 0; i < nshaders; ++i) if (shaders[i].fragile) mgl.DeleteShader(shaders[i].id);
+	for (i = 0; i < nshaders; ++i) mgl.DetachShader(program, shaders[i].id);
+	for (i = 0; i < nshaders; ++i) if (shaders[i].fragile) mgl.DeleteShader(shaders[i].id);
 
 	success = 0;
 	mgl.GetProgramiv(program, GL_LINK_STATUS, &success);
@@ -3810,12 +3878,13 @@ MGL_API mgl_program mglCreateProgram(const mgl_shader *shaders, int nshaders)
 		char buffer[2048];
 		mgl.GetProgramInfoLog(program, sizeof buffer, NULL, buffer);
 		mgl.DeleteProgram(program);
-		MGL_LOG_RETURN(MGL_INVALID_RET(mgl_program), MGL_ERROR_GLSL, "Program creation error: %s", buffer);
+		mgl_internal_log(MGL_ERROR_GLSL, "Program creation error: %s", buffer);
+		return mgl_create_program(MGL_INVALID_ID, 0, 0);
 	}
 
 	mgl.GetProgramiv(program, GL_ACTIVE_UNIFORMS, &uniforms);
 
-	return (mgl_program){ program, (unsigned int)uniforms, shaders_bits & 0x1 };
+	return mgl_create_program(program, (unsigned int)uniforms, shaders_bits & 0x1);
 }
 MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsigned int binding_point, const char *name)
 {
@@ -3828,19 +3897,25 @@ MGL_API void mglProgramBindBuffer(mgl_program program, mgl_buffer buffer, unsign
 
 	if (underlying == GL_UNIFORM_BUFFER) {
 		driverloc = mgl.GetUniformBlockIndex(program.id, name);
-		if (driverloc == GL_INVALID_INDEX) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Uniform block name '%s' does not match any uniform block in program %u (bind %u, max %d)", name, program.id, binding_point, mgl.max_ubos);
+		if (driverloc == GL_INVALID_INDEX) {
+			mgl_internal_log(MGL_ERROR_INVALID_UNIFORM, "Uniform block name '%s' does not match any uniform block in program %u (bind %u, max %d)", name, program.id, binding_point, mgl.max_ubos);
+			return;
+		}
 		mgl.UniformBlockBinding(program.id, driverloc, binding_point);
 	} else if (underlying == GL_SHADER_STORAGE_BUFFER) {
 		driverloc = mgl.GetProgramResourceIndex(program.id, GL_SHADER_STORAGE_BLOCK, name);
-		if (driverloc == GL_INVALID_INDEX) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Shader storage block name '%s' does not match any shader storage block in program %u (bind %u, max %d)", name, program.id, binding_point, mgl.max_ssbos);
+		if (driverloc == GL_INVALID_INDEX) {
+			mgl_internal_log(MGL_ERROR_INVALID_UNIFORM, "Shader storage block name '%s' does not match any shader storage block in program %u (bind %u, max %d)", name, program.id, binding_point, mgl.max_ssbos);
+			return;
+		}
 		mgl.ShaderStorageBlockBinding(program.id, driverloc, binding_point);
 	} else {
-		MGL_LOG_RETURN(
-			MGL_EMPTY,
+		mgl_internal_log(
 			MGL_ERROR_PROGRAM_UNBUFFERABLE,
 			"Cannot bind buffer to point %u to program %u which is not of type MGL_BUFFER_UNIFORM or MGL_BUFFER_SHADER_STORAGE (BID %u, %u)",
 			binding_point, program.id, buffer.id, (unsigned int)buffer.type
 		);
+		return;
 	}
 
 	mgl.BindBufferBase(underlying, binding_point, buffer.id);
@@ -3851,45 +3926,46 @@ MGL_API int mglLocateAttribute(mgl_program program, const char *name)
 	GLint location;
 	if (program.id == MGL_INVALID_ID) return -1;
 	location = mgl.GetAttribLocation(program.id, name);
-	if (location == -1) MGL_LOG_RETURN(-1, MGL_ERROR_GLSL, "Attribute '%s' does not match any attribute in program %u", name, program.id);
+	if (location == -1) mgl_internal_log(MGL_ERROR_GLSL, "Attribute '%s' does not match any attribute in program %u", name, program.id);
 	return location;
 }
 MGL_API mgl_uniform mglLocateUniform(mgl_program program, const char *name)
 {
+	unsigned int i;
 	GLint location;
 	GLenum type;
 
-	if (program.id == MGL_INVALID_ID) return MGL_INVALID_RET(mgl_uniform);
+	if (program.id == MGL_INVALID_ID) return mgl_create_uniform(MGL_INVALID_ID, 0);
 
 	location = mgl.GetUniformLocation(program.id, name);
 	if (location == -1) {
-		const mgl_uniform invalid = { -1, 0 };
-		MGL_LOG_RETURN(invalid, MGL_ERROR_INVALID_UNIFORM, "Uniform variable name '%s' does not match any variable in program %u", name, program.id);
+		mgl_internal_log(MGL_ERROR_INVALID_UNIFORM, "Uniform variable name '%s' does not match any variable in program %u", name, program.id);
+		return mgl_create_uniform(MGL_INVALID_ID, 0);
 	}
 
 	type = MGL_INVALID_ENUM;
 
-	for (unsigned int i = 0; i < program.uniforms; ++i) {
+	for (i = 0; i < program.uniforms; ++i) {
 		char indexname[2048];
 		GLint size, length;
 		mgl.GetActiveUniform(program.id, i, sizeof indexname, &length, &size, &type, indexname);
 		if (strcmp(name, indexname) != 0) continue;
 	}
 
-	return (mgl_uniform){ location, type };
+	return mgl_create_uniform((unsigned int)location + 1, type);
 }
 MGL_API void mglSetUniform(mgl_program program, mgl_uniform uniform, unsigned int arraycount, const void *data)
 {
-	GLint ucount = (GLint)arraycount;
+	GLint ucount = arraycount == 0 ? 1 : (int)arraycount, uloc = (int)uniform.location - 1;
 	GLenum utype = uniform.type, original = utype;
-	ucount = ucount == 0 ? 1 : ucount;
+	unsigned int i;
 
-	if (program.id == MGL_INVALID_ID || uniform.location == -1) return;
+	if (program.id == MGL_INVALID_ID || uniform.location == MGL_INVALID_ID) return;
 
 	if (mgl.downgrade && (utype = mgl_internal_type_downgrade(uniform.type)) != original) {
 		float *downgraded = (float *)malloc(sizeof(float) * arraycount);
 		if (!downgraded) return;
-		for (unsigned int i = 0; i < arraycount; ++i) downgraded[i] = (float)(((const double *)data)[i]);
+		for (i = 0; i < arraycount; ++i) downgraded[i] = (float)(((const double *)data)[i]);
 		free(downgraded);
 	}
 
@@ -3898,41 +3974,43 @@ MGL_API void mglSetUniform(mgl_program program, mgl_uniform uniform, unsigned in
 	switch (utype) {
 		case GL_SAMPLER_1D: case GL_SAMPLER_2D: case GL_SAMPLER_3D:
 		case GL_SAMPLER_1D_ARRAY: case GL_SAMPLER_2D_ARRAY:
-		case GL_BOOL: case GL_INT: mgl.Uniform1iv(uniform.location, ucount, (const GLint *)data); break;
-		case GL_BOOL_VEC2: case GL_INT_VEC2: mgl.Uniform2iv(uniform.location, ucount, (const GLint *)data); break;
-		case GL_BOOL_VEC3: case GL_INT_VEC3: mgl.Uniform3iv(uniform.location, ucount, (const GLint *)data); break;
-		case GL_BOOL_VEC4: case GL_INT_VEC4: mgl.Uniform4iv(uniform.location, ucount, (const GLint *)data); break;
-		case GL_UNSIGNED_INT: mgl.Uniform1uiv(uniform.location, ucount, (const GLuint *)data); break;
-		case GL_UNSIGNED_INT_VEC2: mgl.Uniform2uiv(uniform.location, ucount, (const GLuint *)data); break;
-		case GL_UNSIGNED_INT_VEC3: mgl.Uniform3uiv(uniform.location, ucount, (const GLuint *)data); break;
-		case GL_UNSIGNED_INT_VEC4: mgl.Uniform4uiv(uniform.location, ucount, (const GLuint *)data); break;
-		case GL_FLOAT: mgl.Uniform1fv(uniform.location, ucount, (const GLfloat *)data); break;
-		case GL_FLOAT_VEC2: mgl.Uniform2fv(uniform.location, ucount, (const GLfloat *)data); break;
-		case GL_FLOAT_VEC3: mgl.Uniform3fv(uniform.location, ucount, (const GLfloat *)data); break;
-		case GL_FLOAT_VEC4: mgl.Uniform4fv(uniform.location, ucount, (const GLfloat *)data); break;
-		case GL_DOUBLE: mgl.Uniform1dv(uniform.location, ucount, (const GLdouble *)data); break;
-		case GL_DOUBLE_VEC2: mgl.Uniform2dv(uniform.location, ucount, (const GLdouble *)data); break;
-		case GL_DOUBLE_VEC3: mgl.Uniform3dv(uniform.location, ucount, (const GLdouble *)data); break;
-		case GL_DOUBLE_VEC4: mgl.Uniform4dv(uniform.location, ucount, (const GLdouble *)data); break;
-		case GL_FLOAT_MAT2: mgl.UniformMatrix2fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT3: mgl.UniformMatrix3fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT4: mgl.UniformMatrix4fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT2x3: mgl.UniformMatrix2x3fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT2x4: mgl.UniformMatrix2x4fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT3x2: mgl.UniformMatrix3x2fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT3x4: mgl.UniformMatrix3x4fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT4x2: mgl.UniformMatrix4x2fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_FLOAT_MAT4x3: mgl.UniformMatrix4x3fv(uniform.location, ucount, GL_FALSE, (const GLfloat *)data); break;
-		case GL_DOUBLE_MAT2: mgl.UniformMatrix2dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT3: mgl.UniformMatrix3dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT4: mgl.UniformMatrix4dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT2x3: mgl.UniformMatrix2x3dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT2x4: mgl.UniformMatrix2x4dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT3x2: mgl.UniformMatrix3x2dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT3x4: mgl.UniformMatrix3x4dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT4x2: mgl.UniformMatrix4x2dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		case GL_DOUBLE_MAT4x3: mgl.UniformMatrix4x3dv(uniform.location, ucount, GL_FALSE, (const GLdouble *)data); break;
-		default: MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_INVALID_UNIFORM, "Unsupported uniform type (%u)", uniform.type);
+		case GL_BOOL: case GL_INT: mgl.Uniform1iv(uloc, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC2: case GL_INT_VEC2: mgl.Uniform2iv(uloc, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC3: case GL_INT_VEC3: mgl.Uniform3iv(uloc, ucount, (const GLint *)data); break;
+		case GL_BOOL_VEC4: case GL_INT_VEC4: mgl.Uniform4iv(uloc, ucount, (const GLint *)data); break;
+		case GL_UNSIGNED_INT: mgl.Uniform1uiv(uloc, ucount, (const GLuint *)data); break;
+		case GL_UNSIGNED_INT_VEC2: mgl.Uniform2uiv(uloc, ucount, (const GLuint *)data); break;
+		case GL_UNSIGNED_INT_VEC3: mgl.Uniform3uiv(uloc, ucount, (const GLuint *)data); break;
+		case GL_UNSIGNED_INT_VEC4: mgl.Uniform4uiv(uloc, ucount, (const GLuint *)data); break;
+		case GL_FLOAT: mgl.Uniform1fv(uloc, ucount, (const GLfloat *)data); break;
+		case GL_FLOAT_VEC2: mgl.Uniform2fv(uloc, ucount, (const GLfloat *)data); break;
+		case GL_FLOAT_VEC3: mgl.Uniform3fv(uloc, ucount, (const GLfloat *)data); break;
+		case GL_FLOAT_VEC4: mgl.Uniform4fv(uloc, ucount, (const GLfloat *)data); break;
+		case GL_DOUBLE: mgl.Uniform1dv(uloc, ucount, (const GLdouble *)data); break;
+		case GL_DOUBLE_VEC2: mgl.Uniform2dv(uloc, ucount, (const GLdouble *)data); break;
+		case GL_DOUBLE_VEC3: mgl.Uniform3dv(uloc, ucount, (const GLdouble *)data); break;
+		case GL_DOUBLE_VEC4: mgl.Uniform4dv(uloc, ucount, (const GLdouble *)data); break;
+		case GL_FLOAT_MAT2: mgl.UniformMatrix2fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT3: mgl.UniformMatrix3fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT4: mgl.UniformMatrix4fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT2x3: mgl.UniformMatrix2x3fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT2x4: mgl.UniformMatrix2x4fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT3x2: mgl.UniformMatrix3x2fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT3x4: mgl.UniformMatrix3x4fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT4x2: mgl.UniformMatrix4x2fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_FLOAT_MAT4x3: mgl.UniformMatrix4x3fv(uloc, ucount, GL_FALSE, (const GLfloat *)data); break;
+		case GL_DOUBLE_MAT2: mgl.UniformMatrix2dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT3: mgl.UniformMatrix3dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT4: mgl.UniformMatrix4dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT2x3: mgl.UniformMatrix2x3dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT2x4: mgl.UniformMatrix2x4dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT3x2: mgl.UniformMatrix3x2dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT3x4: mgl.UniformMatrix3x4dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT4x2: mgl.UniformMatrix4x2dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		case GL_DOUBLE_MAT4x3: mgl.UniformMatrix4x3dv(uloc, ucount, GL_FALSE, (const GLdouble *)data); break;
+		default:
+			mgl_internal_log(MGL_ERROR_INVALID_UNIFORM, "Unsupported uniform type (%u)", uniform.type);
+			return;
 	}
 
 	mgl.UseProgram(0);
@@ -3961,7 +4039,7 @@ static void mgl_internal_base_vertex_ebo(
 	size_t offset, size_t count,
 	unsigned int indexsz, int basevertex
 ) {
-	size_t sizeof_element = mgl_internal_buffer_index_size(indexsz);
+	size_t sizeof_element = mgl_internal_buffer_index_size(indexsz), i;
 	void *elements;
 
 	GLuint ebo = (GLuint)mgl_internal_getinteger(GL_ELEMENT_ARRAY_BUFFER_BINDING);
@@ -3969,7 +4047,7 @@ static void mgl_internal_base_vertex_ebo(
 
 	elements = (unsigned char *)mgl.MapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY) + offset;
 
-	for (size_t i = 0; i < count; ++i) {
+	for (i = 0; i < count; ++i) {
 		/* TODO: type expansion */
 		switch (sizeof_element) {
 			case 4: ((GLuint *)elements)[i] = (GLuint)((intptr_t)((GLuint *)elements)[i] + basevertex); break;
@@ -4003,7 +4081,8 @@ static void mgl_internal_reset_attribs(
 	struct mgl_attrib_fc *attribs,
 	unsigned int bitfield_completed
 ) {
-	for (unsigned int i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
+	unsigned int i;
+	for (i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
 		const struct mgl_attrib_fc *attrib = &attribs[i];
 		if ((bitfield_completed & (1 << i)) == 0) continue;
 
@@ -4011,7 +4090,7 @@ static void mgl_internal_reset_attribs(
 
 		switch ((int)attrib->func) {
 			case FUNC_INTEGER: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->stride, attrib->roffset); break;
-			case FUNC_LONG:  mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, attrib->roffset); break;
+			case FUNC_LONG: mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, attrib->roffset); break;
 			case FUNC_FLOAT: FALLTHROUGH
 			default: mgl.VertexAttribPointer(i, attrib->components, attrib->type, attrib->normalized, attrib->stride, attrib->roffset); break;
 		}
@@ -4029,7 +4108,7 @@ static void mgl_internal_draw_instanced(
 	GLint uvoffset = (GLint)vertex_offset;
 	GLsizei ucount = (GLsizei)count;
 
-	unsigned int completed_bitfield = 0, original_check = (uioffset || uvoffset) ? (unsigned int)mgl.max_attribs : 0;
+	unsigned int completed_bitfield = 0, original_check = (uioffset || uvoffset) ? (unsigned int)mgl.max_attribs : 0, i;
 	int fallback_modify = 0;
 
 	struct mgl_attrib_fc original[32];
@@ -4043,7 +4122,7 @@ static void mgl_internal_draw_instanced(
 		return;
 	}
 
-	for (unsigned int i = 0; i < original_check; ++i) {
+	for (i = 0; i < original_check; ++i) {
 		struct mgl_attrib_fc *attrib = &original[i];
 		GLint sizeof_component;
 		intptr_t noffset;
@@ -4084,7 +4163,7 @@ static void mgl_internal_draw_instanced(
 
 		switch ((int)attrib->func) {
 			case FUNC_INTEGER: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)noffset); break;
-			case FUNC_LONG:  mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)noffset); break;
+			case FUNC_LONG: mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)noffset); break;
 			case FUNC_FLOAT: FALLTHROUGH
 			default: mgl.VertexAttribPointer(i, attrib->components, attrib->type, attrib->normalized, attrib->stride, (const void *)noffset); break;
 		}
@@ -4105,8 +4184,8 @@ MGL_API void mglDrawInstanced(mgl_datastore ds, mgl_program program, mgl_drawtyp
 	GLenum drawtype;
 
 	if (ds.id == MGL_INVALID_ID || program.id == MGL_INVALID_ID) return;
-	if (!ds.indexsz && element_constant) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "element_constant (%d) is only available for drawing with an element buffer (DSID %u)", element_constant, ds.id);
-	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for instanced drawing (DSID %u)", ds.id);
+	if (!ds.indexsz && element_constant) { mgl_internal_log(MGL_ERROR_NOT_DRAWABLE, "element_constant (%d) is only available for drawing with an element buffer (DSID %u)", element_constant, ds.id); return; }
+	if (!ds.instanced) { mgl_internal_log(MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for instanced drawing (DSID %u)", ds.id); return; }
 	if (!count || !instance_count) return;
 
 	drawtype = mgl_internal_primitive_type(primitive);
@@ -4139,8 +4218,8 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 	GLenum drawtype;
 
 	if (ds.id == MGL_INVALID_ID || program.id == MGL_INVALID_ID) return;
-	if (!ds.instanced) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for indirect drawing (DSID %u)", ds.id);
-	if (!ds.indirect) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No indirect buffer available for indirect drawing (DSID %u)", ds.id);
+	if (!ds.instanced) { mgl_internal_log(MGL_ERROR_NOT_DRAWABLE, "No instanced attribute set for indirect drawing (DSID %u)", ds.id); return; }
+	if (!ds.indirect) { mgl_internal_log(MGL_ERROR_NOT_DRAWABLE, "No indirect buffer available for indirect drawing (DSID %u)", ds.id); return; }
 	if (!cmd_count) return;
 
 	drawtype = mgl_internal_primitive_type(primitive);
@@ -4155,7 +4234,7 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 		else mgl.MultiDrawArraysIndirect(drawtype, (const void *)(cmd_offset * (intptr_t)sizeof(mgl_indirect_cmd)), (GLsizei)cmd_count, 0);
 		mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, 0);
 	} else {
-		unsigned int last = cmd_offset + cmd_count;
+		unsigned int last = cmd_offset + cmd_count, i;
 		const void *mapcmds;
 
 		mgl.BindBuffer(GL_COPY_READ_BUFFER, ds.indirect);
@@ -4164,7 +4243,7 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 		if (ds.indexsz) {
 			size_t index_size = mgl_internal_buffer_index_size(ds.indexsz);
 			GLenum index_type = mgl_internal_buffer_index_type(ds.indexsz);
-			for (unsigned int i = cmd_offset; i < last; ++i) {
+			for (i = cmd_offset; i < last; ++i) {
 				const mgl_indexed_indirect_cmd *cmd = (const mgl_indexed_indirect_cmd *)mapcmds + i;
 				mgl_internal_draw_instanced(
 					ds, program,
@@ -4175,7 +4254,7 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 				);
 			}
 		} else {
-			for (unsigned int i = cmd_offset; i < last; ++i) {
+			for (i = cmd_offset; i < last; ++i) {
 				const mgl_indirect_cmd *cmd = (const mgl_indirect_cmd *)mapcmds + i;
 				mgl_internal_draw_instanced(
 					ds, program,
@@ -4197,7 +4276,7 @@ MGL_API void mglDrawIndirect(mgl_datastore ds, mgl_program program, mgl_drawtype
 MGL_API void mglCompute(mgl_program program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group)
 {
 	if (program.id == MGL_INVALID_ID) return;
-	if (!program.compute) MGL_LOG_RETURN(MGL_EMPTY, MGL_ERROR_NOT_DRAWABLE, "No compute shader in program (PID %u)", program.id);
+	if (!program.compute) { mgl_internal_log(MGL_ERROR_NOT_DRAWABLE, "No compute shader in program (PID %u)", program.id); return; }
 	mgl.UseProgram(program.id);
 	mgl.DispatchCompute(num_x_group, num_y_group, num_z_group);
 	mgl.MemoryBarrier(GL_ALL_BARRIER_BITS);
@@ -4214,15 +4293,17 @@ MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl
 
 MGL_API void mglDestroyProgram(mgl_program program) { mgl.DeleteProgram(program.id); }
 MGL_API void mglDestroyShader(mgl_shader shader) { mgl.DeleteShader(shader.id); }
-MGL_API void mglDestroyTexture(mgl_texture texture) { mgl.DeleteTextures(1, &(GLuint){ texture.id }); }
-MGL_API void mglDestroyDataStore(mgl_datastore ds) { mgl.DeleteVertexArrays(1, &(GLuint){ ds.id }); }
+MGL_API void mglDestroyTexture(mgl_texture texture) { GLuint textureid = texture.id; mgl.DeleteTextures(1, &textureid); }
+MGL_API void mglDestroyDataStore(mgl_datastore ds) { GLuint dsid = ds.id; mgl.DeleteVertexArrays(1, &dsid); }
 MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds)
 {
+	GLuint bufferid = buffer.id, i;
+
 	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER || buffer.type == GL_ARRAY_BUFFER) {
 		unsigned int otherdivisor = 0;
 		mgl.BindVertexArray(ds.id);
 		if (buffer.type == GL_ARRAY_BUFFER) {
-			for (unsigned int i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
+			for (i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
 				GLuint linkedvbo;
 				if (!mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_ENABLED)) continue;
 				linkedvbo = (GLuint)mgl_internal_getvertattrib(i, GL_VERTEX_ATTRIB_ARRAY_BUFFER_BINDING);
@@ -4240,5 +4321,5 @@ MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds)
 		ds.instanced = otherdivisor;
 	} else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) ds.indirect = 0;
 
-	mgl.DeleteBuffers(1, &(GLuint){ buffer.id });
+	mgl.DeleteBuffers(1, &bufferid);
 }

@@ -23,7 +23,7 @@
 #include <stddef.h>
 
 #define MGL_VERSION 1
-#define MGL_API
+#define MGL_API extern
 
 typedef enum {
 	/* Polygon fill mode values. MGL_POLYGON_FILL by default. */
@@ -81,7 +81,7 @@ typedef enum {
 	/* 3xY double matrices */
 	MGL_DMAT3X2, MGL_DMAT3X3, MGL_DMAT3X4,
 	/* 4xY double matrices */
-	MGL_DMAT4X2, MGL_DMAT4X3, MGL_DMAT4X4,
+	MGL_DMAT4X2, MGL_DMAT4X3, MGL_DMAT4X4
 } mgl_datatype;
 
 typedef enum {
@@ -138,7 +138,7 @@ typedef enum {
 	/* Maximum shader size of a UBO. */
 	MGL_VALUE_MAX_UBO_SIZE,
 	/* Maximum shader size of an SSBO. */
-	MGL_VALUE_MAX_SSBO_SIZE,
+	MGL_VALUE_MAX_SSBO_SIZE
 } mgl_valueid;
 
 typedef enum {
@@ -231,7 +231,7 @@ typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } m
 typedef struct { unsigned int id, uniforms : 31, compute : 1; } mgl_program;
 typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
-typedef struct { int location; unsigned int type; } mgl_uniform;
+typedef struct { unsigned int location; unsigned int type; } mgl_uniform;
 typedef struct { unsigned int id, meta; } mgl_texture;
 
 /* An indirect draw command typically stored as a list in a
@@ -279,8 +279,6 @@ typedef struct {
 /* The given program does not have a compute shader. */
 #define MGL_ERROR_NOT_COMPUTABLE -8
 
-/* The operation is valid, but likely not what was intended. */
-#define MGL_ERROR_MAYBE -254
 /* The operation is not supported by the context. */
 #define MGL_ERROR_UNSUPPORTED -255
 

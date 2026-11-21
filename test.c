@@ -8,19 +8,15 @@
 #include <stdio.h>
 #include <time.h>
 
+static GLFWwindow *window;
 static int wwidth = 1280, wheight = 720;
 static void err(int id, const char *desc) { printf("ERROR %d: %s\n", id, desc); }
-static void framebuffer(GLFWwindow *window, int width, int height) { (void)window; mglViewport(0, 0, wwidth = width, wheight = height); }
-
-#ifdef __GNUC__
-#pragma GCC diagnostic push
-#pragma GCC diagnostic ignored "-Wbad-function-cast"
-#pragma GCC diagnostic ignored "-Wdeclaration-after-statement"
-#endif
+static void framebuffer(GLFWwindow *fwindow, int width, int height) { (void)fwindow; mglViewport(0, 0, wwidth = width, wheight = height); }
 
 static float nrand(void)
 {
-	return (float)((double)rand() * (1.0 / (double)RAND_MAX));
+	const int res = rand();
+	return (float)((double)res * (1.0 / (double)RAND_MAX));
 }
 
 static uint64_t timestamp(void)
@@ -32,36 +28,6 @@ static uint64_t timestamp(void)
 
 int main(int argc, char **argv)
 {
-	if (argc == 2 && argv[1][0] == 'x') glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
-	glfwSetErrorCallback(err);
-	if (!glfwInit()) { printf("NO INIT\n"); return 0; }
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
-	GLFWwindow *window = glfwCreateWindow(wwidth, wheight, "mgl", NULL, NULL);
-	if (!window) { printf("NO WINDOW\n"); return 0; }
-	glfwMakeContextCurrent(window);
-	glfwSetFramebufferSizeCallback(window, framebuffer);
-	glfwSwapInterval(1);
-	mglInit(glfwGetProcAddress);
-
-	printf("GL %s | GLSL %s | %s (%s)\n", mglString(MGL_STRING_VERSION), mglString(MGL_STRING_GLSLVERSION), mglString(MGL_STRING_RENDERER), mglString(MGL_STRING_VENDOR));
-	printf("Extensions: %d (%s, ..., %s)\n", (int)mglValue(MGL_VALUE_NUMEXTS), mglString(MGL_STRING_EXTENSION0), mglString(MGL_STRING_EXTENSION0 + (unsigned)mglValue(MGL_VALUE_NUMEXTS) - 1));
-	printf(
-		"Maximum counts: %d vertex attribs, %d uniforms, %d UBOs (any shader), %d SSBOs (any shader) | Maximum sizes: %dB UBO, %dB SSBO\n",
-		mglValue(MGL_VALUE_MAX_ATTRIBS), mglValue(MGL_VALUE_MAX_UNIFORMS), mglValue(MGL_VALUE_MAX_UBOS), mglValue(MGL_VALUE_MAX_SSBOS),
-		mglValue(MGL_VALUE_MAX_UBO_SIZE), mglValue(MGL_VALUE_MAX_SSBO_SIZE)
-	);
-	printf("Current timestamp: %" PRIu64 "\n", timestamp());
-
-	mglDebug(err);
-
-	mglColor(MGL_COLOR_BLEND, 1.0f, 1.0f, 0.0f, 1.0f);
-	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);
-	mglFeature(MGL_BLEND_1MCSTA);
-	mglFeature(MGL_CULL_BACK_CW);
-	mglFeature(MGL_DEPTH_ALWAYS);
-	mglFeature(MGL_DOWNGRADE_ON);
-
 	const char *vertex_source = "#version 330\n"
 	"layout(location = 0) in vec2 position;"
 	"layout(location = 1) in vec2 instanced_position;"
@@ -75,7 +41,7 @@ int main(int argc, char **argv)
 	"layout(location = 0) in vec2 position;"
 	"layout(location = 1) in vec2 tcoords;"
 	"out vec2 coords;"
-	"void main(){ gl_Position = vec4(position * 2.0 + vec2(-0.1f, 0.1f), 0.0, 1.0); coords = tcoords; }";
+	"void main(){ gl_Position = vec4(position * 2.0 + vec2(-0.1, 0.1), 0.0, 1.0); coords = tcoords * 0.6 + vec2(-0.05, -0.05); }";
 	const char *fragment_source2 = "#version 330\n"
 	"out vec4 frag;"
 	"uniform sampler2D tex;"
@@ -89,18 +55,6 @@ int main(int argc, char **argv)
 	const char *fragment_source3 = "#version 330\n"
 	"out vec4 frag;"
 	"void main(){ frag = vec4(1.0, 0.0, 0.0, 0.5); }";
-
-	mgl_shader vertex = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source, 1);
-	mgl_shader fragment = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source, 1);
-	mgl_program program = mglCreateProgram((mgl_shader[]){vertex, fragment}, 2);
-
-	mgl_shader vertex2 = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source2, 1);
-	mgl_shader fragment2 = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source2, 1);
-	mgl_program program2 = mglCreateProgram((mgl_shader[]){vertex2, fragment2}, 2);
-
-	mgl_shader vertex3 = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source3, 1);
-	mgl_shader fragment3 = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source3, 1);
-	mgl_program program3 = mglCreateProgram((mgl_shader[]){vertex3, fragment3}, 2);
 
 	const float verts[] = {
 		 0.0f,  0.0f,
@@ -142,69 +96,120 @@ int main(int argc, char **argv)
 		2, 3, 0
 	};
 
-	struct {
-		float ubo_position[2];
-	} ubo = { { -1.0f, -0.9f } };
-
-	const int ubo_binding_point = 0;
-	mgl_buffer ubo_buffer = mglCreateBuffer(MGL_BUFFER_UNIFORM);
-	mglBufferData(ubo_buffer, MGL_USAGE_DYNAMIC, &ubo, sizeof ubo);
-	mglProgramBindBuffer(program3, ubo_buffer, ubo_binding_point, "named_ubo");
-
-	mgl_datastore ds = mglCreateDataStore();
-	mgl_buffer vbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds, vbo, 0, MGL_FLOAT2, 0, 0, 0);
-	mgl_buffer ivbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(ivbo, MGL_USAGE_CONSTANT, instanced, sizeof instanced);
-	mglDataStoreAttribute(&ds, ivbo, 1, MGL_FLOAT2, 0, 0, 1);
-	mgl_buffer dvbo = mglCreateBuffer(MGL_BUFFER_DRAW_INDIRECT);
-	mglBufferData(dvbo, MGL_USAGE_CONSTANT, indirect, sizeof indirect);
-	mglAddDataStoreBuffer(&ds, dvbo);
-
-	mgl_datastore ds2 = mglCreateDataStore();
-	mgl_buffer vbo2 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo2, MGL_USAGE_CONSTANT, verts2, sizeof verts2);
-	mglDataStoreAttribute(&ds2, vbo2, 0, MGL_FLOAT2, 4 * sizeof(float), 0 * sizeof(float), 0);
-	mglDataStoreAttribute(&ds2, vbo2, 1, MGL_FLOAT2, 4 * sizeof(float), 2 * sizeof(float), 0);
-
-	mgl_datastore ds3 = mglCreateDataStore();
-	mgl_buffer vbo3 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo3, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds3, vbo3, 0, MGL_FLOAT2, 0, 0, 0);
-	mgl_buffer ebo3 = mglCreateBuffer(MGL_BUFFER_INDICES_UINT);
-	mglBufferData(ebo3, MGL_USAGE_CONSTANT, inds, sizeof inds);
-
-	mgl_datastore ds4 = mglCreateDataStore();
-	mgl_buffer vbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(vbo4, MGL_USAGE_CONSTANT, verts, sizeof verts);
-	mglDataStoreAttribute(&ds4, vbo4, 0, MGL_FLOAT2, 0, 0, 0);
-	mgl_buffer ivbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(ivbo4, MGL_USAGE_CONSTANT, instanced2, sizeof instanced2);
-	mglDataStoreAttribute(&ds4, ivbo4, 1, MGL_FLOAT2, 0, 0, 1);
-
-	mgl_uniform location = mglLocateUniform(program, "col");
-	mgl_uniform samplerloc = mglLocateUniform(program2, "tex");
-	int wire = 0, cd = 0, cdf2 = 0;
-	size_t fid = 0;
-	float indcol[3];
-
-	const int texbinding = 0;
-
 	const unsigned char texpixels[] = {
 		255, 0,   0,
 		0,   255, 0,
 		0,   0,   255,
-		255, 255, 255
+		255, 255, 255,
+
+		255, 255, 0,
+		0,   255, 255,
+		128, 128, 128,
+		255, 0,   255
 	};
 
-	mgl_texture tex = mglCreateTexture(4, 1, texpixels, MGL_TEXTURE_SCALING_NEAREST | MGL_TEXTURE_WRAP_REPEAT, MGL_RGB_U8);
+	mgl_program program, program2, program3;
+	mgl_shader finalshaders[2];
+	mgl_buffer ubo_buffer, vbo, ivbo, dvbo, vbo2, vbo3, ebo3, vbo4, ivbo4;
+	mgl_datastore ds, ds2, ds3, ds4;
+	mgl_uniform location, samplerloc;
+	mgl_texture tex;
+
+	struct { float ubo_position[2]; } ubo = { { -1.0f, -0.9f } };
+	const float p1col[] = { 1.0f, 1.0f, 1.0f };
+	int wire = 0, cd = 0, cdf2 = 0;
+	const int ubo_binding_point = 0, texbinding = 0;
+	size_t fid = 0, y;
+	float indcol[3];
+	double start = 0.0;
+
+	if (argc == 2 && argv[1][0] == 'x') glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+	glfwSetErrorCallback(err);
+	if (!glfwInit()) { printf("Failed to initialize GLFW\n"); exit(EXIT_FAILURE); }
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	window = glfwCreateWindow(wwidth, wheight, "mgl", NULL, NULL);
+	if (!window) { printf("Failed to create window\n"); exit(EXIT_FAILURE); }
+	glfwMakeContextCurrent(window);
+	glfwSetFramebufferSizeCallback(window, framebuffer);
+	glfwSwapInterval(1);
+	mglInit(glfwGetProcAddress);
+
+	printf("GL %s | GLSL %s | %s (%s)\n", mglString(MGL_STRING_VERSION), mglString(MGL_STRING_GLSLVERSION), mglString(MGL_STRING_RENDERER), mglString(MGL_STRING_VENDOR));
+	printf("Extensions: %d (%s, ..., %s)\n", (int)mglValue(MGL_VALUE_NUMEXTS), mglString(MGL_STRING_EXTENSION0), mglString(MGL_STRING_EXTENSION0 + (unsigned)mglValue(MGL_VALUE_NUMEXTS) - 1));
+	printf(
+		"Maximum counts: %d vertex attribs, %d uniforms, %d UBOs (any shader), %d SSBOs (any shader) | Maximum sizes: %dB UBO, %dB SSBO\n",
+		mglValue(MGL_VALUE_MAX_ATTRIBS), mglValue(MGL_VALUE_MAX_UNIFORMS), mglValue(MGL_VALUE_MAX_UBOS), mglValue(MGL_VALUE_MAX_SSBOS),
+		mglValue(MGL_VALUE_MAX_UBO_SIZE), mglValue(MGL_VALUE_MAX_SSBO_SIZE)
+	);
+	printf("Current timestamp: %" PRIu64 "\n", timestamp());
+
+	mglDebug(err);
+
+	mglColor(MGL_COLOR_BLEND, 1.0f, 1.0f, 0.0f, 1.0f);
+	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);
+	mglColor(MGL_COLOR_TEXBORDER, 1.0f, 0.5f, 0.0f, 1.0f);
+	mglFeature(MGL_BLEND_1MCSTA);
+	mglFeature(MGL_CULL_BACK_CW);
+	mglFeature(MGL_DEPTH_ALWAYS);
+	mglFeature(MGL_DOWNGRADE_ON);
+
+	finalshaders[0] = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source, 1);
+	finalshaders[1] =  mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source, 1);
+	program = mglCreateProgram(finalshaders, 2);
+
+	finalshaders[0] = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source2, 1);
+	finalshaders[1] = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source2, 1);
+	program2 = mglCreateProgram(finalshaders, 2);
+
+	finalshaders[0] = mglCreateShader(MGL_SHADER_VERTEX_FRAGILE, &vertex_source3, 1);
+	finalshaders[1] = mglCreateShader(MGL_SHADER_FRAGMENT_FRAGILE, &fragment_source3, 1);
+	program3 = mglCreateProgram(finalshaders, 2);
+
+	ubo_buffer = mglCreateBuffer(MGL_BUFFER_UNIFORM);
+	mglBufferData(ubo_buffer, MGL_USAGE_DYNAMIC, &ubo, sizeof ubo);
+	mglProgramBindBuffer(program3, ubo_buffer, ubo_binding_point, "named_ubo");
+
+	ds = mglCreateDataStore();
+	vbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
+	mglBufferData(vbo, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglDataStoreAttribute(&ds, vbo, 0, MGL_FLOAT2, 0, 0, 0);
+	ivbo = mglCreateBuffer(MGL_BUFFER_VERTICES);
+	mglBufferData(ivbo, MGL_USAGE_CONSTANT, instanced, sizeof instanced);
+	mglDataStoreAttribute(&ds, ivbo, 1, MGL_FLOAT2, 0, 0, 1);
+	dvbo = mglCreateBuffer(MGL_BUFFER_DRAW_INDIRECT);
+	mglBufferData(dvbo, MGL_USAGE_CONSTANT, indirect, sizeof indirect);
+	mglAddDataStoreBuffer(&ds, dvbo);
+
+	ds2 = mglCreateDataStore();
+	vbo2 = mglCreateBuffer(MGL_BUFFER_VERTICES);
+	mglBufferData(vbo2, MGL_USAGE_CONSTANT, verts2, sizeof verts2);
+	mglDataStoreAttribute(&ds2, vbo2, 0, MGL_FLOAT2, 4 * sizeof(float), 0 * sizeof(float), 0);
+	mglDataStoreAttribute(&ds2, vbo2, 1, MGL_FLOAT2, 4 * sizeof(float), 2 * sizeof(float), 0);
+
+	ds3 = mglCreateDataStore();
+	vbo3 = mglCreateBuffer(MGL_BUFFER_VERTICES);
+	mglBufferData(vbo3, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglDataStoreAttribute(&ds3, vbo3, 0, MGL_FLOAT2, 0, 0, 0);
+	ebo3 = mglCreateBuffer(MGL_BUFFER_INDICES_UINT);
+	mglBufferData(ebo3, MGL_USAGE_CONSTANT, inds, sizeof inds);
+
+	ds4 = mglCreateDataStore();
+	vbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
+	mglBufferData(vbo4, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglDataStoreAttribute(&ds4, vbo4, 0, MGL_FLOAT2, 0, 0, 0);
+	ivbo4 = mglCreateBuffer(MGL_BUFFER_VERTICES);
+	mglBufferData(ivbo4, MGL_USAGE_CONSTANT, instanced2, sizeof instanced2);
+	mglDataStoreAttribute(&ds4, ivbo4, 1, MGL_FLOAT2, 0, 0, 1);
+
+	location = mglLocateUniform(program, "col");
+	samplerloc = mglLocateUniform(program2, "tex");
+
+	tex = mglCreateTexture(4, 2, texpixels, MGL_TEXTURE_SCALING_NEAREST | MGL_TEXTURE_WRAP_BORDER, MGL_RGB_U8);
 	mglBindTexture(tex, texbinding);
 	mglSetUniform(program2, samplerloc, 1, &texbinding);
 
 	srand((unsigned int)time(NULL));
-
-	double start = 0.0;
 
 	while (!glfwWindowShouldClose(window)) {
 		glfwPollEvents();
@@ -214,7 +219,7 @@ int main(int argc, char **argv)
 		else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_RELEASE) cd = 0;
 		mglClear(MGL_CLEAR_COLOR);
 		mglDraw(ds2, program2, MGL_DRAW_STRIPS, 0, 4);
-		mglSetUniform(program, location, 1, (float[3]){ 1.0f, 1.0f, 1.0f });
+		mglSetUniform(program, location, 1, p1col);
 		mglDrawInstanced(ds4, program, MGL_DRAW_STRIPS, 0, 4, (fid % 120 <= 60), 3, 0);
 		if (fid++ % 60 == 0) { indcol[0] = nrand(); indcol[1] = nrand(); indcol[2] = nrand(); }
 		mglSetUniform(program, location, 1, indcol);
@@ -225,16 +230,16 @@ int main(int argc, char **argv)
 		mglBufferDataPartial(ubo_buffer, &ubo, 0, sizeof ubo);
 		glfwSwapBuffers(window);
 		if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS && !cdf2) {
-			cdf2 = 1;
 			const size_t w = (size_t)wwidth, h = (size_t)wheight;
 			FILE *ppm = fopen("screenshot.ppm", "w");
 			unsigned char *pixels = (unsigned char *)malloc((w + 1) * h * 3);
 			unsigned char *trow = pixels + w * h * 3;
 			size_t rowsz = w * 3;
+			cdf2 = 1;
 			if (!ppm || !pixels) goto end;
 			fprintf(ppm, "P6 %d %d 255 ", (int)w, (int)h);
 			mglReadFrame(0, 0, (int)w, (int)h, pixels, MGL_RGB_U8);
-			for (size_t y = 0; y < h / 2; ++y) {
+			for (y = 0; y < h / 2; ++y) {
 				unsigned char *top = pixels + y * rowsz;
 				unsigned char *bottom = pixels + (h - y - 1) * rowsz;
 				memcpy(trow, top, rowsz);
@@ -272,8 +277,6 @@ int main(int argc, char **argv)
 	mglDestroyTexture(tex);
 
 	glfwTerminate();
-}
 
-#ifdef __GNUC__
-#pragma GCC diagnostic pop
-#endif
+	return 0;
+}
