@@ -2096,7 +2096,7 @@ static struct mgl_pfn_s {
 	int max_ubos, max_ssbos, max_uniforms;
 	int max_attribs;
 
-	char pad[4];
+	unsigned int currentfb;
 } mgl;
 
 #ifdef __clang__
@@ -2146,6 +2146,12 @@ static mgl_texture mgl_create_texture(unsigned int id, unsigned int meta)
 	mgl_texture ret;
 	ret.id = id; ret.meta = meta;
 	return ret;
+}
+static mgl_framebuffer mgl_create_framebuffer(unsigned int id, unsigned int tex, unsigned int rbuf)
+{
+	mgl_framebuffer fb;
+	fb.id = id; fb.tex = tex; fb.rbuf = rbuf;
+	return fb;
 }
 
 #ifdef __GNUC__
@@ -3706,7 +3712,7 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? GL_LINEAR_MIPMAP_LINEAR : GL_NEAREST_MIPMAP_NEAREST);
+	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? (pixels ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR) : (pixels ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, scaling);
 
 	if (wrap == GL_CLAMP_TO_BORDER) {
@@ -3719,7 +3725,7 @@ MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, 
 	}
 
 	mgl.TexImage2D(GL_TEXTURE_2D, 0, GL_RGB, width, height, 0, uformat, utype, pixels);
-	mgl.GenerateMipmap(GL_TEXTURE_2D);
+	if (pixels) mgl.GenerateMipmap(GL_TEXTURE_2D);
 
 	return mgl_create_texture(texture, format);
 }
@@ -3728,6 +3734,53 @@ MGL_API void mglBindTexture(mgl_texture texture, unsigned int binding)
 	if (texture.id == MGL_INVALID_ID) return;
 	mgl.ActiveTexture(GL_TEXTURE0 + binding);
 	mgl.BindTexture(GL_TEXTURE_2D, texture.id);
+}
+
+MGL_API mgl_framebuffer mglCreateFramebuffer(int width, int height)
+{
+	GLenum err;
+	GLuint fb, rbuf;
+	mgl_texture tex;
+
+	if (!width && !height) return mgl_create_framebuffer(MGL_INVALID_ID, 0, 0);
+
+	tex = mglCreateTexture(width, height, NULL, MGL_TEXTURE_WRAP_REPEAT | MGL_TEXTURE_SCALING_LINEAR, MGL_RGB_U8);
+
+	mgl.GenFramebuffers(1, &fb);
+	mgl.BindFramebuffer(GL_FRAMEBUFFER, fb);
+	mgl.FramebufferTexture2D(GL_FRAMEBUFFER, GL_COLOR_ATTACHMENT0, GL_TEXTURE_2D, tex.id, 0);
+
+	mgl.GenRenderbuffers(1, &rbuf);
+	mgl.BindRenderbuffer(GL_RENDERBUFFER, rbuf);
+	mgl.RenderbufferStorage(GL_RENDERBUFFER, GL_DEPTH24_STENCIL8, width, height);
+	mgl.BindRenderbuffer(GL_RENDERBUFFER, 0);
+	mgl.FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbuf);
+
+	if ((err = mgl.CheckFramebufferStatus(GL_FRAMEBUFFER)) != GL_FRAMEBUFFER_COMPLETE) {
+		mgl_internal_log(MGL_ERROR_UNSUPPORTED, "Unable to create framebuffer (%dx%d, %u,%u,%u = %u)\n", width, height, fb, tex.id, rbuf, err);
+		return mgl_create_framebuffer(MGL_INVALID_ID, 0, 0);
+	}
+
+	mgl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+	return mgl_create_framebuffer(fb, tex.id, rbuf);
+}
+MGL_API void mglUseFramebuffer(mgl_framebuffer *fb)
+{
+	if (fb && fb->id == MGL_INVALID_ID) return;
+	mgl.BindFramebuffer(GL_FRAMEBUFFER, (mgl.currentfb = fb ? fb->id : 0));
+}
+MGL_API mgl_texture mglFramebufferTexture(mgl_framebuffer fb)
+{
+	return mgl_create_texture(fb.id, MGL_RGB_U8);
+}
+MGL_API void mglResizeFramebuffer(mgl_framebuffer *fb, int width, int height)
+{
+	int istarget;
+	if (!fb || width == 0 || height == 0) return;
+	istarget = mgl.currentfb == fb->id;
+	mglDestroyFramebuffer(*fb);
+	*fb = mglCreateFramebuffer(width, height);
+	if (istarget) mglUseFramebuffer(fb);
 }
 
 MGL_API mgl_datastore mglCreateDataStore(void)
@@ -4293,14 +4346,12 @@ MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl
 
 MGL_API void mglDestroyProgram(mgl_program program) { mgl.DeleteProgram(program.id); }
 MGL_API void mglDestroyShader(mgl_shader shader) { mgl.DeleteShader(shader.id); }
-MGL_API void mglDestroyTexture(mgl_texture texture) { GLuint textureid = texture.id; mgl.DeleteTextures(1, &textureid); }
-MGL_API void mglDestroyDataStore(mgl_datastore ds) { GLuint dsid = ds.id; mgl.DeleteVertexArrays(1, &dsid); }
+MGL_API void mglDestroyTexture(mgl_texture texture) { mgl.DeleteTextures(1, &texture.id); }
+MGL_API void mglDestroyDataStore(mgl_datastore ds) { mgl.DeleteVertexArrays(1, &ds.id); }
 MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds)
 {
-	GLuint bufferid = buffer.id, i;
-
 	if (buffer.type == GL_ELEMENT_ARRAY_BUFFER || buffer.type == GL_ARRAY_BUFFER) {
-		unsigned int otherdivisor = 0;
+		unsigned int otherdivisor = 0, i;
 		mgl.BindVertexArray(ds.id);
 		if (buffer.type == GL_ARRAY_BUFFER) {
 			for (i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
@@ -4321,5 +4372,12 @@ MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds)
 		ds.instanced = otherdivisor;
 	} else if (buffer.type == GL_DRAW_INDIRECT_BUFFER) ds.indirect = 0;
 
-	mgl.DeleteBuffers(1, &bufferid);
+	mgl.DeleteBuffers(1, &buffer.id);
+}
+MGL_API void mglDestroyFramebuffer(mgl_framebuffer fb)
+{
+	if (mgl.currentfb == fb.id) mgl.BindFramebuffer(GL_FRAMEBUFFER, (mgl.currentfb = 0));
+	mgl.DeleteFramebuffers(1, &fb.id);
+	mgl.DeleteTextures(1, &fb.tex);
+	mgl.DeleteRenderbuffers(1, &fb.rbuf);
 }

@@ -232,6 +232,7 @@ typedef struct { unsigned int id, uniforms : 31, compute : 1; } mgl_program;
 typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
 typedef struct { unsigned int location; unsigned int type; } mgl_uniform;
+typedef struct { unsigned int id, tex, rbuf; } mgl_framebuffer;
 typedef struct { unsigned int id, meta; } mgl_texture;
 
 /* An indirect draw command typically stored as a list in a
@@ -317,13 +318,25 @@ MGL_API void *mglMapBuffer(mgl_buffer buffer, mgl_access access);
 
 /* Create a texture with the specified information.
    Internally, (e.g. when accessing in a shader), the texture is stored in an RGBA format;
-   the green and blue components will be 0.0 and 1.0 for alpha if the source does not provide it.
+   the green and blue components will be 0.0 and the alpha component will be 1.0 if the source does not provide it.
    The 'filters' parameter is made up of two parts: a bit describing the wrap mode and another describing the scaling mode.
    You may not have multiple bits for each part. Defaults are used if a part has no corresponding bit set. */
 MGL_API mgl_texture mglCreateTexture(int width, int height, const void *pixels, unsigned int filters, mgl_color format);
 /* Bind the given texture to a specific texture unit.
    To use this in shader code, use mglSetUniform with a sampler variable with a signed integer set to the same texture binding/unit. */
 MGL_API void mglBindTexture(mgl_texture texture, unsigned int binding);
+
+/* Create a framebuffer of the specified size.
+   The framebuffer has a depth, stencil and color attachment. */
+MGL_API mgl_framebuffer mglCreateFramebuffer(int width, int height);
+/* Bind the given framebuffer. This will become the target of mglDraw* and mglReadFrame operations.
+   Pass in a NULL pointer to use the default framebuffer, i.e. operating on the screen as a whole. */
+MGL_API void mglUseFramebuffer(mgl_framebuffer *fb);
+/* Get the texture of the given framebuffer. You can then use it in texture-related options, such as mglBindTexture.
+   You should not delete this texture for obvious reasons. */
+MGL_API mgl_texture mglFramebufferTexture(mgl_framebuffer fb);
+/* Resize the framebuffer. */
+MGL_API void mglResizeFramebuffer(mgl_framebuffer *fb, int width, int height);
 
 /* Create a buffer data store. You could use this to store mesh and index data. */
 MGL_API mgl_datastore mglCreateDataStore(void);
@@ -378,5 +391,8 @@ MGL_API void mglDestroyDataStore(mgl_datastore ds);
 /* Destroy the buffer object and unbind from the data store.
    This wil disable any attributes that were enabled using the given buffer. */
 MGL_API void mglDestroyBuffer(mgl_buffer buffer, mgl_datastore ds);
+/* Destroy the framebuffer object and unbind it if in use.
+   This will also destroy the underlying texture. */
+MGL_API void mglDestroyFramebuffer(mgl_framebuffer fb);
 
 #endif
