@@ -2098,8 +2098,9 @@ static struct mgl_context {
 	int max_texunits;
 
 	unsigned int currentfb, currentprogram, currentvao;
+	unsigned int currentbufs[5];
 
-	char pad[4];
+	/* char pad[4]; */
 } mgl;
 
 #ifdef __clang__
@@ -2113,72 +2114,6 @@ static struct mgl_context {
 
 #define MGL_EMPTY
 #define MGL_INVALID_LOG(msg, val) do { mgl_internal_log(MGL_ERROR_INVALID_ENUM, msg, val); return MGL_INVALID_ENUM; } while (0)
-
-static mgl_datastore mgl_create_datastore(unsigned int id, unsigned int indirect, unsigned int indexsz, unsigned int instanced)
-{
-	mgl_datastore ret;
-	ret.id = id; ret.indirect = indirect; ret.indexsz = indexsz; ret.instanced = instanced;
-	return ret;
-}
-static mgl_program mgl_create_program(unsigned int id, unsigned int uniforms, unsigned int compute)
-{
-	mgl_program ret;
-	ret.id = id; ret.uniforms = uniforms; ret.compute = compute;
-	return ret;
-}
-static mgl_buffer mgl_create_buffer(unsigned int id, unsigned int type, unsigned int indexsz)
-{
-	mgl_buffer ret;
-	ret.id = id; ret.type = type; ret.indexsz = indexsz;
-	return ret;
-}
-static mgl_shader mgl_create_shader(unsigned int id, unsigned int type, unsigned int fragile)
-{
-	mgl_shader ret;
-	ret.id = id; ret.type = type; ret.fragile = fragile;
-	return ret;
-}
-static mgl_uniform mgl_create_uniform(unsigned int location, unsigned int type)
-{
-	mgl_uniform ret;
-	ret.location = location; ret.type = type;
-	return ret;
-}
-static mgl_texture mgl_create_texture(unsigned int id, unsigned int fmt, unsigned int filters)
-{
-	mgl_texture ret;
-	ret.id = id; ret.fmt = fmt; ret.filters = filters;
-	return ret;
-}
-static mgl_framebuffer mgl_create_framebuffer(unsigned int id, unsigned int tex, unsigned int rbuf)
-{
-	mgl_framebuffer fb;
-	fb.id = id; fb.tex = tex; fb.rbuf = rbuf;
-	return fb;
-}
-
-static int mgl_internal_log2(unsigned int x)
-{
-	int log = -1;
-	for (; x; ++log) x >>= 1;
-	return log;
-}
-
-static void mgl_internal_use_program(const mgl_program *program)
-{
-	const unsigned int id = program ? program->id : 0;
-	if (mgl.currentprogram != id) mgl.UseProgram((mgl.currentprogram = id));
-}
-static void mgl_internal_use_fb(const mgl_framebuffer *fb)
-{
-	const unsigned int id = fb ? fb->id : 0;
-	if (mgl.currentfb != id) mgl.BindFramebuffer(GL_FRAMEBUFFER, (mgl.currentfb = id));
-}
-static void mgl_internal_use_ds(const mgl_datastore *ds)
-{
-	const unsigned int id = ds ? ds->id : 0;
-	if (mgl.currentvao != id) mgl.BindVertexArray((mgl.currentvao = id));
-}
 
 #ifdef __GNUC__
 __attribute__((__format__ (__printf__, 2, 3)))
@@ -2242,6 +2177,94 @@ static void APICALL mgl_internal_debug_callback(
 }
 #endif
 
+static int mgl_internal_log2(unsigned int x)
+{
+	int log = -1;
+	for (; x; ++log) x >>= 1;
+	return log;
+}
+
+static mgl_datastore mgl_create_datastore(unsigned int id, unsigned int indirect, unsigned int indexsz, unsigned int instanced)
+{
+	mgl_datastore ret;
+	ret.id = id; ret.indirect = indirect; ret.indexsz = indexsz; ret.instanced = instanced;
+	return ret;
+}
+static mgl_program mgl_create_program(unsigned int id, unsigned int uniforms, unsigned int compute)
+{
+	mgl_program ret;
+	ret.id = id; ret.uniforms = uniforms; ret.compute = compute;
+	return ret;
+}
+static mgl_buffer mgl_create_buffer(unsigned int id, unsigned int type, unsigned int indexsz)
+{
+	mgl_buffer ret;
+	ret.id = id; ret.type = type; ret.indexsz = indexsz;
+	return ret;
+}
+static mgl_shader mgl_create_shader(unsigned int id, unsigned int type, unsigned int fragile)
+{
+	mgl_shader ret;
+	ret.id = id; ret.type = type; ret.fragile = fragile;
+	return ret;
+}
+static mgl_uniform mgl_create_uniform(unsigned int location, unsigned int type)
+{
+	mgl_uniform ret;
+	ret.location = location; ret.type = type;
+	return ret;
+}
+static mgl_texture mgl_create_texture(unsigned int id, unsigned int fmt, unsigned int filters)
+{
+	mgl_texture ret;
+	ret.id = id; ret.fmt = fmt; ret.filters = filters;
+	return ret;
+}
+static mgl_framebuffer mgl_create_framebuffer(unsigned int id, unsigned int tex, unsigned int rbuf)
+{
+	mgl_framebuffer fb;
+	fb.id = id; fb.tex = tex; fb.rbuf = rbuf;
+	return fb;
+}
+
+static void mgl_internal_use_program(const mgl_program *program)
+{
+	const unsigned int id = program ? program->id : 0;
+	if (mgl.currentprogram != id) mgl.UseProgram((mgl.currentprogram = id));
+}
+static void mgl_internal_use_fb(const mgl_framebuffer *fb)
+{
+	const unsigned int id = fb ? fb->id : 0;
+	if (mgl.currentfb != id) mgl.BindFramebuffer(GL_FRAMEBUFFER, (mgl.currentfb = id));
+}
+static void mgl_internal_use_ds(const mgl_datastore *ds)
+{
+	const unsigned int id = ds ? ds->id : 0;
+	if (mgl.currentvao != id) mgl.BindVertexArray((mgl.currentvao = id));
+}
+static void mgl_internal_use_buf(const mgl_buffer *buf)
+{
+	int index = -1;
+
+	if (buf->type == GL_ELEMENT_ARRAY_BUFFER) {
+		mgl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, buf->id);
+		return;
+	}
+
+	switch (buf->type) {
+		case GL_ARRAY_BUFFER: index = 0; break;
+		case GL_UNIFORM_BUFFER: index = 1; break;
+		case GL_DRAW_INDIRECT_BUFFER: index = 2; break;
+		case GL_COPY_READ_BUFFER: index = 3; break;
+		case GL_SHADER_STORAGE_BUFFER: index = 4; break;
+		default:
+			mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid buffer type (del) %u", (unsigned int)buf->type);
+			return;
+	}
+
+	if (mgl.currentbufs[index] != buf->id) mgl.BindBuffer(buf->type, (mgl.currentbufs[index] = buf->id));
+}
+
 static GLenum mgl_internal_string_id(unsigned int id)
 {
 	if (id >= MGL_STRING_EXTENSION0 && id <= (MGL_STRING_EXTENSION0 + 1027)) return GL_EXTENSIONS;
@@ -2253,12 +2276,14 @@ static GLenum mgl_internal_string_id(unsigned int id)
 		default: MGL_INVALID_LOG("Invalid string type/id %u", id);
 	}
 }
+
 static int mgl_internal_getinteger(GLenum id)
 {
 	GLint value;
 	mgl.GetIntegerv(id, &value);
 	return value;
 }
+
 static int mgl_internal_value_direct(mgl_valueid type)
 {
 	switch ((int)type) {
@@ -3725,7 +3750,7 @@ MGL_API void mglBufferData(const mgl_buffer *buffer, mgl_usage usage, const void
 	if (!buffer || buffer->id == MGL_INVALID_ID) return;
 	hint = mgl_internal_buffer_hint(buffer->type, usage);
 	if (hint == MGL_INVALID_ENUM) return;
-	mgl.BindBuffer(buffer->type, buffer->id);
+	mgl_internal_use_buf(buffer);
 	/* TODO: more buffer options */
 	if (usage == MGL_USAGE_CONSTANT && mgl.BufferStorage) mgl.BufferStorage(buffer->type, (GLsizeiptr)bytes, data, GL_DYNAMIC_STORAGE_BIT | GL_MAP_READ_BIT | GL_MAP_WRITE_BIT | GL_MAP_COHERENT_BIT | GL_MAP_PERSISTENT_BIT);
 	else mgl.BufferData(buffer->type, (GLsizeiptr)bytes, data, hint);
@@ -3733,14 +3758,14 @@ MGL_API void mglBufferData(const mgl_buffer *buffer, mgl_usage usage, const void
 MGL_API void mglBufferDataPartial(const mgl_buffer *buffer, const void *data, size_t offset, size_t bytes)
 {
 	if (!buffer || buffer->id == MGL_INVALID_ID) return;
-	mgl.BindBuffer(buffer->type, buffer->id);
+	mgl_internal_use_buf(buffer);
 	mgl.BufferSubData(buffer->type, (GLintptr)offset, (GLsizeiptr)bytes, data);
 }
 MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access)
 {
 	void *result = NULL;
 	if (!buffer || buffer->id == MGL_INVALID_ID) return NULL;
-	mgl.BindBuffer(buffer->id, buffer->id);
+	mgl_internal_use_buf(buffer);
 	if (access != MGL_ACCESS_UNMAP) {
 		GLenum uaccess = mgl_internal_access_type(access);
 		if (uaccess != MGL_INVALID_ENUM) result = mgl.MapBuffer(buffer->type, uaccess);
@@ -3907,7 +3932,7 @@ MGL_API void mglAddDataStoreBuffer(mgl_datastore *ds, const mgl_buffer *buffer)
 		} else ds->indexsz = buffer->indexsz;
 
 		mgl_internal_use_ds(ds);
-		mgl.BindBuffer(buffer->type, buffer->id);
+		mgl.BindBuffer(GL_ELEMENT_ARRAY_BUFFER, buffer->id);
 	} else if (buffer->type == GL_DRAW_INDIRECT_BUFFER || buffer->type == GL_COPY_READ_BUFFER) {
 		if (ds->indirect) mgl_internal_log(MGL_ERROR_BUFFER_TYPE, "The data store already has an indirect buffer (DSID %u | BID %u, %u)", ds->id, buffer->id, (unsigned int)buffer->type);
 		else ds->indirect = buffer->id;
@@ -4257,6 +4282,7 @@ static void mgl_internal_draw_instanced(
 	for (i = 0; i < original_check; ++i) {
 		struct mgl_attrib_fc *attrib = &original[i];
 		GLint sizeof_component;
+		mgl_buffer tmpbuf;
 		intptr_t noffset;
 		GLuint divisor;
 
@@ -4291,7 +4317,8 @@ static void mgl_internal_draw_instanced(
 			break;
 		}
 
-		mgl.BindBuffer(GL_ARRAY_BUFFER, attrib->vbo);
+		tmpbuf = mgl_create_buffer(attrib->vbo, GL_ARRAY_BUFFER, 0);
+		mgl_internal_use_buf(&tmpbuf);
 
 		switch ((int)attrib->func) {
 			case FUNC_INTEGER: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)noffset); break;
@@ -4362,8 +4389,9 @@ MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program
 	} else {
 		unsigned int last = cmd_offset + cmd_count, i;
 		const void *mapcmds;
+		mgl_buffer tmpindirect = mgl_create_buffer(ds->indirect, GL_COPY_READ_BUFFER, 0);
 
-		mgl.BindBuffer(GL_COPY_READ_BUFFER, ds->indirect);
+		mgl_internal_use_buf(&tmpindirect);
 		mapcmds = mgl.MapBuffer(GL_COPY_READ_BUFFER, GL_READ_ONLY);
 
 		if (ds->indexsz) {
@@ -4392,7 +4420,6 @@ MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program
 		}
 
 		mgl.UnmapBuffer(GL_COPY_READ_BUFFER);
-		mgl.BindBuffer(GL_COPY_READ_BUFFER, 0);
 	}
 }
 
