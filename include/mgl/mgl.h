@@ -239,29 +239,37 @@ typedef enum {
 	MGL_DRAW_POINTS
 } mgl_drawtype;
 
-typedef struct { unsigned int id, indirect : 29, indexsz : 2, instanced : 1; } mgl_datastore;
-typedef struct { unsigned int id, uniforms : 31, compute : 1; } mgl_program;
+struct mgl_internal_attribute
+{
+	unsigned int type, divisor, vbo, components : 3, func : 2, normalized : 1, pad : 26;
+	int astride, offset, stride;
+};
+
+typedef struct { unsigned int id, indirect : 31, instanced : 1, ebo : 30, indexsz : 2; struct mgl_internal_attribute attribs[32]; } mgl_datastore;
+typedef struct { unsigned int id, uniforms : 30, vertexid : 1, compute : 1; } mgl_program;
+typedef struct { unsigned int id, type : 30, vertexid : 1, fragile : 1; } mgl_shader;
 typedef struct { unsigned int id, fmt : 16, filters : 16; } mgl_texture;
-typedef struct { unsigned int id, type : 31, fragile : 1; } mgl_shader;
 typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
 typedef struct { unsigned int id, tex, rbuf; } mgl_framebuffer;
 typedef struct { unsigned int location, type; } mgl_uniform;
 
 /* An indirect draw command typically stored as a list in a
-   MGL_BUFFER_DRAW_INDIRECT buffer for drawing via mglDrawIndirect. */
+   MGL_BUFFER_DRAW_INDIRECT buffer for drawing via mglDrawIndirect.
+   It stores the arguments for a call to mglDrawInstanced. */
 typedef struct {
 	unsigned int count;
 	unsigned int instance_count;
-	unsigned int first;
+	unsigned int offset;
 	unsigned int instance_offset;
 } mgl_indirect_cmd;
 
 /* An indexed indirect draw command typically stored as a list in a
-   MGL_BUFFER_DRAW_INDIRECT buffer for drawing via mglDrawIndirect. */
+   MGL_BUFFER_DRAW_INDIRECT buffer for drawing via mglDrawIndirect.
+   It stores the arguments for a call to mglDrawInstanced. */
 typedef struct {
 	unsigned int count;
 	unsigned int instance_count;
-	unsigned int first_index;
+	unsigned int offset;
 	int element_constant;
 	unsigned int instance_offset;
 } mgl_indexed_indirect_cmd;
