@@ -387,11 +387,21 @@ MGL_API void mglDrawInstanced(const mgl_datastore *ds, const mgl_program *progra
 /* Draw using the given data store, program, primitive type and indirect command offset and count. */
 MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program, mgl_drawtype primitive, unsigned int cmd_offset, unsigned int cmd_count);
 
+/* Draw part of the 'read' framebuffer to part of the 'draw' framebuffer, where either framebuffer may be NULL to specify the default framebuffer.
+   The 'clearbits' is the same as that of mglClear - i.e. a bitfield of mgl_clearbits.
+   The 'scalemode' specifies the interpolation method when stretching an image (MGL_TEXTURE_SCALING_LINEAR or MGL_TEXTURE_SCALING_NEAREST). */
+MGL_API void mglDrawFramebuffer(
+	const mgl_framebuffer *read, int rx, int ry, int rwidth, int rheight,
+	const mgl_framebuffer *draw, int dx, int dy, int dwidth, int dheight,
+	unsigned int clearbits, mgl_texfilter scalemode
+);
+
+/* Retrieve specific dimensions of the given framebuffer's pixels in a given format.
+   The framebuffer may be NULL to specify the default framebuffer. */
+MGL_API void mglReadFrame(const mgl_framebuffer *fb, void *pixels, mgl_color format, int x, int y, int width, int height);
+
 /* Execute a compute shader program with the given work group dimensions. */
 MGL_API void mglCompute(const mgl_program *program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group);
-
-/* Retrieve specific dimensions of the current frame's pixels in a given format. */
-MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format);
 
 /* Destroy the program object. */
 MGL_API void mglDestroyProgram(mgl_program *program);

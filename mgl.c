@@ -3835,12 +3835,14 @@ MGL_API mgl_framebuffer mglCreateFramebuffer(int width, int height)
 	mgl.BindRenderbuffer(GL_RENDERBUFFER, 0);
 	mgl.FramebufferRenderbuffer(GL_FRAMEBUFFER, GL_DEPTH_STENCIL_ATTACHMENT, GL_RENDERBUFFER, rbuf);
 
-	if ((err = mgl.CheckFramebufferStatus(GL_FRAMEBUFFER)) != GL_FRAMEBUFFER_COMPLETE) {
+	err = mgl.CheckFramebufferStatus(GL_FRAMEBUFFER);
+	mgl.BindFramebuffer(GL_FRAMEBUFFER, 0);
+
+	if (err != GL_FRAMEBUFFER_COMPLETE) {
 		mgl_internal_log(MGL_ERROR_UNSUPPORTED, "Unable to create framebuffer (%dx%d, %u,%u,%u = %u)\n", width, height, fb, tex.id, rbuf, err);
 		return mgl_create_framebuffer(MGL_INVALID_ID, 0, 0);
 	}
 
-	mgl.BindFramebuffer(GL_FRAMEBUFFER, 0);
 	return mgl_create_framebuffer(fb, tex.id, rbuf);
 }
 MGL_API void mglUseFramebuffer(const mgl_framebuffer *fb)
@@ -4393,6 +4395,43 @@ MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program
 	mgl.UseProgram(0);
 }
 
+MGL_API void mglDrawFramebuffer(
+	const mgl_framebuffer *read, int rx, int ry, int rwidth, int rheight,
+	const mgl_framebuffer *draw, int dx, int dy, int dwidth, int dheight,
+	unsigned int clearbits, mgl_texfilter scalemode
+) {
+	GLbitfield uclear;
+
+	if (read && read->id == MGL_INVALID_ID) return;
+	if (draw && draw->id == MGL_INVALID_ID) return;
+	if (scalemode != MGL_TEXTURE_SCALING_LINEAR && scalemode != MGL_TEXTURE_SCALING_NEAREST) {
+		mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid scale mode %u (expected either MGL_TEXTURE_SCALING_LINEAR or MGL_TEXTURE_SCALING_NEAREST)", scalemode);
+		return;
+	}
+
+	uclear = mgl_internal_clear_type(clearbits);
+	if (uclear == MGL_INVALID_ENUM) return;
+
+	mgl.BindFramebuffer(GL_READ_FRAMEBUFFER, read ? read->id : 0);
+	mgl.BindFramebuffer(GL_DRAW_FRAMEBUFFER, draw ? draw->id : 0);
+	mgl.BlitFramebuffer(rx, ry, rx + rwidth, ry + rheight, dx, dy, dx + dwidth, dy + dheight, uclear, (GLenum)mgl_internal_texture_scaling(scalemode));
+	mgl.BindFramebuffer(GL_FRAMEBUFFER, mgl.currentfb);
+}
+
+MGL_API void mglReadFrame(const mgl_framebuffer *fb, void *pixels, mgl_color format, int x, int y, int width, int height)
+{
+	GLenum utype = mgl_internal_color_type(format);
+	GLenum uformat = mgl_internal_color_format(format);
+
+	if (fb && fb->id == MGL_INVALID_ID) return;
+	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return;
+
+	mgl.BindFramebuffer(GL_READ_FRAMEBUFFER, fb ? fb->id : 0);
+	mgl.PixelStorei(GL_PACK_ALIGNMENT, 1);
+	mgl.ReadPixels(x, y, width, height, uformat, utype, pixels);
+	mgl.BindFramebuffer(GL_FRAMEBUFFER, mgl.currentfb);
+}
+
 MGL_API void mglCompute(const mgl_program *program, unsigned int num_x_group, unsigned int num_y_group, unsigned int num_z_group)
 {
 	if (program->id == MGL_INVALID_ID) return;
@@ -4401,14 +4440,6 @@ MGL_API void mglCompute(const mgl_program *program, unsigned int num_x_group, un
 	mgl.DispatchCompute(num_x_group, num_y_group, num_z_group);
 	mgl.MemoryBarrier(GL_ALL_BARRIER_BITS);
 	mgl.UseProgram(0);
-}
-
-MGL_API void mglReadFrame(int x, int y, int width, int height, void *pixels, mgl_color format)
-{
-	GLenum utype = mgl_internal_color_type(format);
-	GLenum uformat = mgl_internal_color_format(format);
-	if (utype == MGL_INVALID_ENUM || uformat == MGL_INVALID_ENUM) return;
-	mgl.ReadPixels(x, y, width, height, uformat, utype, pixels);
 }
 
 MGL_API void mglDestroyProgram(mgl_program *program) { mgl.DeleteProgram(program->id); memset(program, 0, sizeof *program); }

@@ -273,6 +273,7 @@ int main(int argc, char **argv)
 		mglClear(MGL_CLEAR_DEPTH | MGL_CLEAR_COLOR);
 		mglFeature(MGL_DEPTH_OFF);
 		mglDraw(&dsfb, &program4, MGL_DRAW_STRIPS, 0, 4);
+		mglDrawFramebuffer(&fb, 0, 0, wwidth, wheight, NULL, wwidth - wwidth / 6 - 50, wheight - wheight / 6 - 50, wwidth / 6, wheight / 6, MGL_CLEAR_COLOR, MGL_TEXTURE_SCALING_LINEAR);
 		ubo.ubo_position[0] = ubo.ubo_position[0] > 0.9f ? ((void)((ubo.ubo_position[1] += 0.1f)), -1.0f) : ubo.ubo_position[0] + 0.016f;
 		ubo.ubo_position[1] = ubo.ubo_position[1] > 1.0f ? -0.9f : ubo.ubo_position[1];
 		mglBufferDataPartial(&ubo_buffer, &ubo, 0, sizeof ubo);
@@ -280,13 +281,13 @@ int main(int argc, char **argv)
 		if (glfwGetKey(window, GLFW_KEY_F2) == GLFW_PRESS && !cdf2) {
 			const size_t w = (size_t)wwidth, h = (size_t)wheight;
 			FILE *ppm = fopen("screenshot.ppm", "w");
-			unsigned char *pixels = (unsigned char *)malloc((w + 1) * h * 3);
+			unsigned char *pixels = (unsigned char *)malloc(w * (h + 1) * 3);
 			unsigned char *trow = pixels + w * h * 3;
 			size_t rowsz = w * 3;
 			cdf2 = 1;
 			if (!ppm || !pixels) goto end;
 			fprintf(ppm, "P6 %d %d 255 ", (int)w, (int)h);
-			mglReadFrame(0, 0, (int)w, (int)h, pixels, MGL_RGB_U8);
+			mglReadFrame(NULL, pixels, MGL_RGB_U8, 0, 0, (int)w, (int)h);
 			for (y = 0; y < h / 2; ++y) {
 				unsigned char *top = pixels + y * rowsz;
 				unsigned char *bottom = pixels + (h - y - 1) * rowsz;
