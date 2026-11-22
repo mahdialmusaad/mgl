@@ -1424,7 +1424,7 @@ typedef void *GLsync;
 
 typedef struct mgl_rgba { float r, g, b, a; } mgl_rgba;
 
-static struct mgl_pfn_s {
+static struct mgl_context {
 	void (APICALL *ActiveShaderProgram)(GLuint, GLuint);
 	void (APICALL *ActiveTexture)(GLenum);
 	void (APICALL *AttachShader)(GLuint, GLuint);
@@ -2095,8 +2095,11 @@ static struct mgl_pfn_s {
 	int max_ubo_size, max_ssbo_size;
 	int max_ubos, max_ssbos, max_uniforms;
 	int max_attribs;
+	int max_texunits;
 
 	unsigned int currentfb;
+
+	char pad[4];
 } mgl;
 
 #ifdef __clang__
@@ -2252,6 +2255,7 @@ static int mgl_internal_value_direct(mgl_valueid type)
 		case MGL_VALUE_MAX_SSBOS: return mgl.max_ssbos;
 		case MGL_VALUE_MAX_UBO_SIZE: return mgl.max_ubo_size;
 		case MGL_VALUE_MAX_SSBO_SIZE: return mgl.max_ssbo_size;
+		case MGL_VALUE_MAX_TEXUNITS: return mgl.max_texunits;
 		default:
 			mgl_internal_log(MGL_ERROR_INVALID_ENUM, "Invalid value type %u", type);
 			return 0;
@@ -3587,8 +3591,8 @@ MGL_API int mglInit(void (*load(const char *))(void))
 	mgl.max_ubo_size = mgl_internal_getinteger(GL_MAX_UNIFORM_BLOCK_SIZE);
 	mgl.max_uniforms = mgl_internal_getinteger(GL_MAX_UNIFORM_LOCATIONS);
 	mgl.num_extensions = mgl_internal_getinteger(GL_NUM_EXTENSIONS);
-
 	mgl.max_attribs = mgl_internal_getinteger(GL_MAX_VERTEX_ATTRIBS);
+	mgl.max_texunits = mgl_internal_getinteger(GL_MAX_COMBINED_TEXTURE_IMAGE_UNITS);
 
 	return version;
 }
@@ -3802,6 +3806,11 @@ MGL_API void mglBufferTexture(mgl_texture *texture, const void *pixels, mgl_colo
 MGL_API void mglBindTexture(const mgl_texture *texture, unsigned int binding)
 {
 	if (!texture || texture->id == MGL_INVALID_ID) return;
+	if (binding >= (unsigned int)mgl.max_texunits) {
+		mgl_internal_log(MGL_ERROR_UNSUPPORTED, "Attempted to bind texture to unit index %u but max supported is index %d", binding, mgl.max_texunits - 1);
+		return;
+	}
+
 	mgl.ActiveTexture(GL_TEXTURE0 + binding);
 	mgl.BindTexture(GL_TEXTURE_2D, texture->id);
 }

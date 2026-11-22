@@ -142,7 +142,9 @@ typedef enum {
 	/* Maximum shader size of a UBO. */
 	MGL_VALUE_MAX_UBO_SIZE,
 	/* Maximum shader size of an SSBO. */
-	MGL_VALUE_MAX_SSBO_SIZE
+	MGL_VALUE_MAX_SSBO_SIZE,
+	/* Maximum number of texture units able to be bound at once. */
+	MGL_VALUE_MAX_TEXUNITS
 } mgl_valueid;
 
 typedef enum {
