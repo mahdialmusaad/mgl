@@ -100,7 +100,7 @@ typedef enum {
 	/* BGRA image formats of varying underlying types. */
 	MGL_BGRA_U8, MGL_BGRA_I8, MGL_BGRA_U16, MGL_BGRA_I16, MGL_BGRA_U32, MGL_BGRA_I32, MGL_BGRA_F32,
 	/* Use previous texture property for mglBufferTexture. */
-	MGL_TEXTURE_PROPERTY_AUTO = 0x7FFFFFF
+	MGL_TEXTURE_PROPERTY_AUTO = 0x7FFF
 } mgl_color;
 
 typedef enum {
@@ -249,7 +249,7 @@ typedef struct { unsigned int id, indirect : 31, instanced : 1, ebo : 30, indexs
 typedef struct { unsigned int id, uniforms : 30, vertexid : 1, compute : 1; } mgl_program;
 typedef struct { unsigned int id, type : 30, vertexid : 1, fragile : 1; } mgl_shader;
 typedef struct { unsigned int id, fmt : 16, filters : 16; } mgl_texture;
-typedef struct { unsigned int id, type : 30, indexsz : 2; } mgl_buffer;
+typedef struct { unsigned int id, type : 29, indexsz : 3; } mgl_buffer;
 typedef struct { unsigned int id, tex, rbuf; } mgl_framebuffer;
 typedef struct { unsigned int location, type; } mgl_uniform;
 

@@ -2109,10 +2109,14 @@ static struct mgl_context {
 # define FALLTHROUGH ;
 #endif
 
-#define FALLTHROUGH_INNER __attribute__((__fallthrough__));
+#ifdef __GNUC__
+# define FALLTHROUGH_INNER __attribute__((__fallthrough__));
+#else
+# define FALLTHROUGH_INNER ;
+#endif
+
 #define MGL_INVALID_ENUM 0x7FFFFFFF
 
-#define MGL_EMPTY
 #define MGL_INVALID_LOG(msg, val) do { mgl_internal_log(MGL_ERROR_INVALID_ENUM, msg, val); return MGL_INVALID_ENUM; } while (0)
 
 #ifdef __GNUC__
@@ -2453,32 +2457,22 @@ static GLenum mgl_internal_buffer_hint(unsigned int type, mgl_usage usage)
 	return (GLenum)((int)nature + (int)frequency);
 }
 
-static unsigned int mgl_internal_buffer_element_id(mgl_buffertype type)
+static unsigned int mgl_internal_ebo_indexsz(mgl_buffertype type)
 {
 	switch ((int)type) {
 		case MGL_BUFFER_INDICES_UBYTE: return 1;
 		case MGL_BUFFER_INDICES_USHORT: return 2;
-		case MGL_BUFFER_INDICES_UINT: return 3;
+		case MGL_BUFFER_INDICES_UINT: return 4;
 		default: return 0;
 	}
 }
 
-static size_t mgl_internal_buffer_element_size(unsigned int indexsz)
-{
-	switch (indexsz) {
-		case 1: return 1;
-		case 2: return 2;
-		case 3: return 4;
-		default: return 0;
-	}
-}
-
-static GLenum mgl_internal_buffer_element_type(unsigned int indexsz)
+static GLenum mgl_internal_indexsz_type(unsigned int indexsz)
 {
 	switch (indexsz) {
 		case 1: return GL_UNSIGNED_BYTE;
 		case 2: return GL_UNSIGNED_SHORT;
-		case 3: return GL_UNSIGNED_INT;
+		case 4: return GL_UNSIGNED_INT;
 		default: return 0;
 	}
 }
@@ -3719,7 +3713,7 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type)
 	GLenum buftype = mgl_internal_buffer_type(type);
 	if (buftype == MGL_INVALID_ENUM) return mgl_create_buffer(MGL_INVALID_ID, 0, 0);
 	mgl.GenBuffers(1, &buf);
-	return mgl_create_buffer(buf, buftype, mgl_internal_buffer_element_id(type));
+	return mgl_create_buffer(buf, buftype, mgl_internal_ebo_indexsz(type));
 }
 MGL_API void mglBufferData(const mgl_buffer *buffer, mgl_usage usage, const void *data, size_t bytes)
 {
@@ -3754,7 +3748,7 @@ MGL_API mgl_texture mglCreateTexture(const void *pixels, mgl_color format, int w
 {
 	GLuint texture;
 	GLenum utype, uformat, iformat;
-	GLint wrap, scaling, mips;
+	GLint wrap, scaling, mipmaps;
 
 	if (width <= 0 || height <= 0) return mgl_create_texture(MGL_INVALID_ID, 0, 0);
 
@@ -3766,14 +3760,14 @@ MGL_API mgl_texture mglCreateTexture(const void *pixels, mgl_color format, int w
 
 	wrap = mgl_internal_texture_wrap(filters);
 	scaling = mgl_internal_texture_scaling(filters);
-	mips = filters & MGL_TEXTURE_MIPMAPS;
+	mipmaps = filters & MGL_TEXTURE_MIPMAPS;
 
 	mgl.GenTextures(1, &texture);
 	mgl.BindTexture(GL_TEXTURE_2D, texture);
 
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_S, wrap);
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_WRAP_T, wrap);
-	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? (mips ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR) : (mips ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
+	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, scaling == GL_LINEAR ? (mipmaps ? GL_LINEAR_MIPMAP_LINEAR : GL_LINEAR) : (mipmaps ? GL_NEAREST_MIPMAP_NEAREST : GL_NEAREST));
 	mgl.TexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, scaling);
 
 	if (wrap == GL_CLAMP_TO_BORDER) {
@@ -3790,7 +3784,7 @@ MGL_API mgl_texture mglCreateTexture(const void *pixels, mgl_color format, int w
 		mgl.TexSubImage2D(GL_TEXTURE_2D, 0, 0, 0, width, height, uformat, utype, pixels);
 	} else mgl.TexImage2D(GL_TEXTURE_2D, 0, (GLint)iformat, width, height, 0, uformat, utype, pixels);
 
-	if (mips) mgl.GenerateMipmap(GL_TEXTURE_2D);
+	if (mipmaps) mgl.GenerateMipmap(GL_TEXTURE_2D);
 
 	return mgl_create_texture(texture, format, filters);
 }
@@ -3817,7 +3811,7 @@ MGL_API void mglBufferTexture(mgl_texture *texture, const void *pixels, mgl_colo
 
 	immutable = texture->filters & MGL_TEXTURE_IMMUTABLE;
 
-	if (immutable && (width != current_width || height != current_height || format != texture->fmt)) {
+	if (immutable && (width != current_width || height != current_height || (int)format != (int)texture->fmt)) {
 		mgl_internal_log(MGL_ERROR_IMMUTABLE, "Tried to modify immutable texture property (got %dx%d,%u but stored %dx%d,%d)", width, height, format, current_width, current_height, texture->fmt);
 		return;
 	}
@@ -3963,7 +3957,7 @@ MGL_API void mglDataStoreAttribute(mgl_datastore *ds, const mgl_buffer *buffer, 
 		attrib->normalized = 0;
 		attrib->type = datatype;
 		attrib->stride = fstride;
-		attrib->offset = (int)((intptr_t)foffset);
+		attrib->offset = (int)((ptrdiff_t)foffset);
 		attrib->astride = fstride == 0 ? astride : fstride;
 		attrib->vbo = buffer->id;
 	}
@@ -4183,7 +4177,7 @@ MGL_API void mglDraw(const mgl_datastore *ds, const mgl_program *program, mgl_dr
 	mgl_internal_use_program(program);
 	mgl_internal_use_ds(ds);
 
-	if (ds->indexsz) mgl.DrawElements(drawtype, (GLsizei)count, mgl_internal_buffer_element_type(ds->indexsz), (const void *)(offset * mgl_internal_buffer_element_size(ds->indexsz)));
+	if (ds->indexsz) mgl.DrawElements(drawtype, (GLsizei)count, mgl_internal_indexsz_type(ds->indexsz), (const void *)((size_t)offset * (size_t)ds->indexsz));
 	else mgl.DrawArrays(drawtype, (GLint)offset, (GLsizei)count);
 }
 
@@ -4192,16 +4186,16 @@ static void mgl_internal_base_vertex_ebo(
 	size_t offset, size_t count,
 	unsigned int indexsz, int basevertex
 ) {
-	size_t sizeof_element = mgl_internal_buffer_element_size(indexsz), i;
 	mgl_buffer tmpebo = mgl_create_buffer(ds->ebo, GL_ELEMENT_ARRAY_BUFFER, 0);
 	void *elements;
+	size_t i;
 
 	mgl_internal_use_buffer(&tmpebo);
 	elements = (unsigned char *)mgl.MapBuffer(GL_ELEMENT_ARRAY_BUFFER, GL_WRITE_ONLY) + offset;
 
 	for (i = 0; i < count; ++i) {
 		/* TODO: type expansion */
-		switch (sizeof_element) {
+		switch (indexsz) {
 			case 4: ((GLuint *)elements)[i] = (GLuint)((intptr_t)((GLuint *)elements)[i] + basevertex); break;
 			case 2: ((GLushort *)elements)[i] = (GLushort)((intptr_t)((GLushort *)elements)[i] + basevertex); break;
 			case 1: FALLTHROUGH
@@ -4223,9 +4217,9 @@ static void mgl_internal_reset_attribs(const mgl_datastore *ds, unsigned int bit
 
 		switch (attrib->func) {
 			default: FALLTHROUGH
-			case 0: mgl.VertexAttribPointer(i, attrib->components, attrib->type, attrib->normalized, attrib->stride, (const void *)((intptr_t)attrib->offset)); break;
-			case 1: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)((intptr_t)attrib->offset)); break;
-			case 2: mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)((intptr_t)attrib->offset)); break;
+			case 0: mgl.VertexAttribPointer(i, attrib->components, attrib->type, (GLboolean)attrib->normalized, attrib->stride, (const void *)((ptrdiff_t)attrib->offset)); break;
+			case 1: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)((ptrdiff_t)attrib->offset)); break;
+			case 2: mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->stride, (const void *)((ptrdiff_t)attrib->offset)); break;
 		}
 	}
 }
@@ -4253,14 +4247,14 @@ static void mgl_internal_draw_instanced(
 	for (i = 0; i < original_check; ++i) {
 		const struct mgl_internal_attribute *attrib = &ds->attribs[i];
 		mgl_buffer tmpbuf;
-		intptr_t noffset;
+		ptrdiff_t noffset;
 
 		if (!attrib->astride) continue;
 		if (attrib->divisor == 0 && !uvoffset) continue;
 		if (attrib->divisor != 0 && !uioffset) continue;
 
-		if (attrib->divisor == 0) noffset = (vertex_offset * attrib->astride) + (intptr_t)attrib->offset;
-		else noffset = (int)(instance_offset / attrib->divisor) * attrib->astride + (intptr_t)attrib->offset;
+		if (attrib->divisor == 0) noffset = (vertex_offset * attrib->astride) + (ptrdiff_t)attrib->offset;
+		else noffset = (int)(instance_offset / attrib->divisor) * attrib->astride + (ptrdiff_t)attrib->offset;
 
 		if (noffset < 0) {
 			mgl_internal_reset_attribs(ds, completed_bitfield);
@@ -4273,7 +4267,7 @@ static void mgl_internal_draw_instanced(
 
 		switch (attrib->func) {
 			default: FALLTHROUGH
-			case 0: mgl.VertexAttribPointer(i, attrib->components, attrib->type, attrib->normalized, attrib->astride, (const void *)noffset); break;
+			case 0: mgl.VertexAttribPointer(i, attrib->components, attrib->type, (GLboolean)attrib->normalized, attrib->astride, (const void *)noffset); break;
 			case 1: mgl.VertexAttribIPointer(i, attrib->components, attrib->type, attrib->astride, (const void *)noffset); break;
 			case 2: mgl.VertexAttribLPointer(i, attrib->components, attrib->type, attrib->astride, (const void *)noffset); break;
 		}
@@ -4307,8 +4301,8 @@ MGL_API void mglDrawInstanced(const mgl_datastore *ds, const mgl_program *progra
 	if (ds->indexsz) {
 		mgl_internal_draw_instanced(
 			ds, program,
-			drawtype, mgl_internal_buffer_element_type(ds->indexsz),
-			(size_t)offset * mgl_internal_buffer_element_size(ds->indexsz),
+			drawtype, mgl_internal_indexsz_type(ds->indexsz),
+			(size_t)offset * ds->indexsz,
 			element_constant, count, instance_offset, instance_count
 		);
 	} else {
@@ -4337,8 +4331,8 @@ MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program
 
 	if (mgl.MultiDrawArraysIndirect) {
 		mgl.BindBuffer(GL_DRAW_INDIRECT_BUFFER, ds->indirect);
-		if (ds->indexsz) mgl.MultiDrawElementsIndirect(drawtype, mgl_internal_buffer_element_type(ds->indexsz), (const void *)(cmd_offset * (intptr_t)sizeof(mgl_indexed_indirect_cmd)), (GLsizei)cmd_count, 0);
-		else mgl.MultiDrawArraysIndirect(drawtype, (const void *)(cmd_offset * (intptr_t)sizeof(mgl_indirect_cmd)), (GLsizei)cmd_count, 0);
+		if (ds->indexsz) mgl.MultiDrawElementsIndirect(drawtype, mgl_internal_indexsz_type(ds->indexsz), (const void *)(sizeof(mgl_indexed_indirect_cmd) * cmd_offset), (GLsizei)cmd_count, 0);
+		else mgl.MultiDrawArraysIndirect(drawtype, (const void *)(sizeof(mgl_indirect_cmd) * cmd_offset), (GLsizei)cmd_count, 0);
 	} else {
 		unsigned int last = cmd_offset + cmd_count, i;
 		const void *mapcmds;
@@ -4348,14 +4342,13 @@ MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program
 		mapcmds = mgl.MapBuffer(GL_COPY_READ_BUFFER, GL_READ_ONLY);
 
 		if (ds->indexsz) {
-			size_t index_size = mgl_internal_buffer_element_size(ds->indexsz);
-			GLenum index_type = mgl_internal_buffer_element_type(ds->indexsz);
+			GLenum index_type = mgl_internal_indexsz_type(ds->indexsz);
 			for (i = cmd_offset; i < last; ++i) {
 				const mgl_indexed_indirect_cmd *cmd = (const mgl_indexed_indirect_cmd *)mapcmds + i;
 				mgl_internal_draw_instanced(
 					ds, program,
 					drawtype, index_type,
-					cmd->offset * index_size,
+					cmd->offset * (unsigned int)ds->indexsz,
 					cmd->element_constant, cmd->count,
 					cmd->instance_offset, cmd->instance_count
 				);
