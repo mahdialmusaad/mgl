@@ -2131,7 +2131,7 @@ static void mgl_internal_log(int id, const char *fmt, ...)
 	if (!mgl.user_debug) return;
 	va_start(l, fmt);
 
-#ifdef __STDC_VERSION__
+#if defined(_MSC_VER) || defined(__STDC_VERSION__)
 	vsnprintf(buffer, sizeof buffer, fmt, l);
 #else
 	vsprintf(buffer, fmt, l);

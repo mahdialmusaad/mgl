@@ -340,6 +340,7 @@ MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access);
    Internally, the texture will be stored as an equivalent float type (i.e. MGL_*_F32),
    so only the 'sampler2D' uniform type can be used in shaders to access them.
    The 'filters' parameter is a bitfield made up MGL_TEXTURE_* enum bits.
+   Pixels may be NULL - this will have the effect of reserving the memory.
    Defaults are used for each 'category' of texture filter bits. */
 MGL_API mgl_texture mglCreateTexture(const void *pixels, mgl_color format, int width, int height, unsigned int filters);
 /* Buffer pixel data to the given texture.
