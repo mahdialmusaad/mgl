@@ -244,9 +244,7 @@ int main(int argc, char **argv)
 	mglBufferTexture(&tex, texpixels, MGL_RGB_U8, 4, 2);
 	printf("Error example: ");
 	mglBufferTexture(&tex, texpixels, MGL_RGB_U8, 3, 2);
-	mglBindTexture(&tex, texbinding);
 	mglSetUniform(&program2, &samplerloc, 1, &texbinding);
-	mglBindTexture(&fbtex, fbtexbinding);
 	mglSetUniform(&program4, &fbtexloc, 1, &fbtexbinding);
 
 	srand((unsigned int)time(NULL));
@@ -259,6 +257,7 @@ int main(int argc, char **argv)
 		else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_RELEASE) cd = 0;
 		if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS && !cdf3) { invert = 1 - invert; mglSetUniform(&program4, &invertloc, 1, &invert); cdf3 = 1; }
 		else if (glfwGetKey(window, GLFW_KEY_X) == GLFW_RELEASE) cdf3 = 0;
+		mglBindTexture(&tex, texbinding);
 		mglUseFramebuffer(&fb);
 		mglFeature(MGL_DEPTH_LEQUAL);
 		mglClear(MGL_CLEAR_DEPTH | MGL_CLEAR_COLOR);
@@ -272,6 +271,7 @@ int main(int argc, char **argv)
 		mglUseFramebuffer(NULL);
 		mglClear(MGL_CLEAR_DEPTH | MGL_CLEAR_COLOR);
 		mglFeature(MGL_DEPTH_OFF);
+		mglBindTexture(&fbtex, fbtexbinding);
 		mglDraw(&dsfb, &program4, MGL_DRAW_STRIPS, 0, 4);
 		mglDrawFramebuffer(&fb, 0, 0, wwidth, wheight, NULL, wwidth - wwidth / 6 - 50, wheight - wheight / 6 - 50, wwidth / 6, wheight / 6, MGL_CLEAR_COLOR, MGL_TEXTURE_SCALING_LINEAR);
 		ubo.ubo_position[0] = ubo.ubo_position[0] > 0.9f ? ((void)((ubo.ubo_position[1] += 0.1f)), -1.0f) : ubo.ubo_position[0] + 0.016f;

@@ -3680,6 +3680,8 @@ MGL_API void mglFeature(mgl_state state)
 	if (state == MGL_DEPTH_OFF) mgl.Disable(GL_DEPTH_TEST);
 	else if (state == MGL_DEPTH_ON) mgl.Enable(GL_DEPTH_TEST);
 	else if (state == MGL_BLEND_OFF) mgl.Disable(GL_BLEND);
+	else if (state == MGL_DEPTH_READONLY) mgl.DepthMask(GL_FALSE);
+	else if (state == MGL_DEPTH_WRITEABLE) mgl.DepthMask(GL_TRUE);
 	else if (state == MGL_POINTSIZE_OFF) mgl.Disable(GL_PROGRAM_POINT_SIZE);
 	else if (state == MGL_POINTSIZE_ON) mgl.Enable(GL_PROGRAM_POINT_SIZE);
 	else if (state == MGL_DOWNGRADE_SSBO_OFF) mgl.downgrade_ssbo = 0;

@@ -32,6 +32,9 @@ typedef enum {
 	MGL_DEPTH_OFF, MGL_DEPTH_ON, MGL_DEPTH_NEVER, MGL_DEPTH_LESS,
 	MGL_DEPTH_EQUAL, MGL_DEPTH_LEQUAL, MGL_DEPTH_GREATER,
 	MGL_DEPTH_NEQUAL, MGL_DEPTH_GEQUAL, MGL_DEPTH_ALWAYS,
+	/* Depth write toggles. This determines whether the depth buffer is updated by any draws, or only used to discard fragments.
+	   Default is MGL_DEPTH_WRITEABLE, i.e. draw calls do update the depth buffer. */
+	MGL_DEPTH_READONLY, MGL_DEPTH_WRITEABLE,
 	/* Blend feature values. Disabled by default - recommended enabled value is MGL_BLEND_1MSRCA.
 	   SRC = fragment output,
 	   DST = current color buffer value,
