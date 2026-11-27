@@ -137,23 +137,36 @@ int main(int argc, char **argv)
 
 	struct { float ubo_position[2]; } ubo = { { -1.0f, -0.9f } };
 	const float p1col[] = { 1.0f, 1.0f, 1.0f };
-	int wire = 0, cd = 0, cdf2 = 0, cdf3 = 0, invert = 0;
+	int wire = 0, cd = 0, cdf2 = 0, cdf3 = 0, invert = 0, apiver = 0;
 	const int ubo_binding_point = 0, texbinding = 0, fbtexbinding = 1;
 	size_t fid = 0, y;
 	float indcol[3];
 	double start = 0.0;
 
-	if (argc == 2 && argv[1][0] == 'x') glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
+	char a1 = argc > 1 ? argv[1][0] : '\0';
+	char a2 = argc > 2 ? argv[2][0] : '\0';
+
+	if (a1 == 'x' || a1 == 'X' || a2 == 'x' || a2 == 'X') glfwInitHint(GLFW_PLATFORM, GLFW_PLATFORM_X11);
 	glfwSetErrorCallback(err);
-	if (!glfwInit()) { printf("Failed to initialize GLFW\n"); exit(EXIT_FAILURE); }
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
-	glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 3);
+	if (!glfwInit()) { fprintf(stderr, "Failed to initialize GLFW\n"); exit(EXIT_FAILURE); }
+	if (a1 == 'e' || a1 == 'E' || a2 == 'e' || a2 == 'E') {
+		glfwWindowHint(GLFW_CLIENT_API, GLFW_OPENGL_ES_API);
+		glfwWindowHint(GLFW_CONTEXT_CREATION_API, GLFW_EGL_CONTEXT_API);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 3);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 2);
+		apiver = 31;
+	} else {
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MAJOR, 4);
+		glfwWindowHint(GLFW_CONTEXT_VERSION_MINOR, 6);
+		apiver = 33;
+	}
 	window = glfwCreateWindow(wwidth, wheight, "mgl", NULL, NULL);
-	if (!window) { printf("Failed to create window\n"); exit(EXIT_FAILURE); }
+	if (!window) { fprintf(stderr, "Failed to create window\n"); exit(EXIT_FAILURE); }
 	glfwMakeContextCurrent(window);
 	glfwSetFramebufferSizeCallback(window, framebuffer);
 	glfwSwapInterval(1);
-	mglInit(glfwGetProcAddress);
+	mglDebug(err);
+	if (!mglInit(glfwGetProcAddress, apiver)) { fprintf(stderr, "Failed to load OpenGL functions\n"); exit(EXIT_FAILURE); }
 
 	printf("GL %s | GLSL %s | %s (%s)\n", mglString(MGL_STRING_VERSION), mglString(MGL_STRING_GLSLVERSION), mglString(MGL_STRING_RENDERER), mglString(MGL_STRING_VENDOR));
 	printf("Extensions: %d (%s, ..., %s)\n", (int)mglValue(MGL_VALUE_NUMEXTS), mglString(MGL_STRING_EXTENSION0), mglString(MGL_STRING_EXTENSION0 + (unsigned)mglValue(MGL_VALUE_NUMEXTS) - 1));
@@ -164,8 +177,6 @@ int main(int argc, char **argv)
 		mglValue(MGL_VALUE_MAX_UBO_SIZE), mglValue(MGL_VALUE_MAX_SSBO_SIZE)
 	);
 	printf("Current timestamp: %" PRIu64 "\n", timestamp());
-
-	mglDebug(err);
 
 	mglColor(MGL_COLOR_BLEND, 1.0f, 1.0f, 0.0f, 1.0f);
 	mglColor(MGL_COLOR_CLEAR, 0.2f, 0.2f, 0.2f, 1.0f);

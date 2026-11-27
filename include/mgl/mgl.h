@@ -306,8 +306,11 @@ typedef struct {
 /* The operation is not supported by the context. */
 #define MGL_ERROR_UNSUPPORTED -255
 
-/* Initialize library internals and GL function pointers. Returns API version loaded in the format: major * 10 + minor. */
-MGL_API int mglInit(void (*loader(const char *))(void));
+/* Initialize library internals and GL function pointers,
+   given the version used to determine functions to load, in same format as return value,
+   or -1 to load the maximum version the context supports.
+   Returns API version loaded in the format: major * 10 + minor (i.e. version 3.3 = 33). */
+MGL_API int mglInit(void (*loader(const char *))(void), int apiver);
 /* Set the debug handler for errors. */
 MGL_API void mglDebug(void (*debug_callback)(int id, const char *name));
 
