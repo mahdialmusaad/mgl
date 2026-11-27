@@ -3751,6 +3751,40 @@ MGL_API void mglBufferDataPartial(const mgl_buffer *buffer, const void *data, si
 	mgl_internal_use_buffer(buffer);
 	mgl.BufferSubData(buffer->type, (GLintptr)offset, (GLsizeiptr)bytes, data);
 }
+MGL_API void mglGetBufferData(const mgl_buffer *buffer, size_t buffer_offset, size_t bytes, void *results)
+{
+	if (!buffer || buffer->id == MGL_INVALID_ID) return;
+	mgl_internal_use_buffer(buffer);
+	mgl.GetBufferSubData(buffer->type, (GLintptr)buffer_offset, (GLsizeiptr)bytes, results);
+}
+MGL_API void mglCopyBufferData(const mgl_buffer *source, size_t source_offset, const mgl_buffer *destination, size_t destination_offset, size_t copybytes)
+{
+	GLuint prev_dest;
+	if (!source || source->id == MGL_INVALID_ID) return;
+	if (!destination || destination->id == MGL_INVALID_ID) return;
+	if (!copybytes) return;
+	if (source == destination) {
+		if (
+			destination_offset == source_offset ||
+			(source_offset < destination_offset && source_offset + copybytes > destination_offset) ||
+			(destination_offset < source_offset && destination_offset + copybytes > source_offset)
+		) {
+			mgl_internal_log(
+				MGL_ERROR_INVALID_NUMBER,
+				"The copy and paste regions for copying in the same buffer overlap (copy %u-%u, paste to %u-%u).",
+				(unsigned int)source_offset, (unsigned int)(source_offset + copybytes), (unsigned int)destination_offset, (unsigned int)(destination_offset + copybytes)
+			);
+			return;
+		}
+	}
+
+	mgl_internal_use_buffer(source);
+	prev_dest = mgl.currentbufs[mgl_internal_buffer_index(destination->type)];
+
+	if (source != destination) mgl.BindBuffer(GL_COPY_WRITE_BUFFER, destination->id);
+	mgl.CopyBufferSubData(source->type, source == destination ? destination->type : GL_COPY_WRITE_BUFFER, (GLintptr)source_offset, (GLintptr)destination_offset, (GLsizeiptr)copybytes);
+	if (source != destination && prev_dest == destination->id) mgl.BindBuffer(destination->type, destination->id);
+}
 MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access)
 {
 	void *result = NULL;

@@ -302,6 +302,12 @@ typedef struct {
 #define MGL_ERROR_NOT_DRAWABLE -7
 /* The given program does not have a compute shader. */
 #define MGL_ERROR_NOT_COMPUTABLE -8
+/* Given value(s) is/are invalid. More details in error description.
+   This refers to numerical values, not enums or objects.
+   Invalid enums instead produce MGL_ERROR_INVALID_ENUM, and invalid objects have no effect.
+   Furthermore, if you request to do an action 0 times or with 0 bytes, it also has no effect.
+   This means a numerical value simply does not make sense. */
+#define MGL_ERROR_INVALID_NUMBER -9
 
 /* The operation is not supported by the context. */
 #define MGL_ERROR_UNSUPPORTED -255
@@ -338,7 +344,12 @@ MGL_API mgl_buffer mglCreateBuffer(mgl_buffertype type);
    Index buffers must be 4 bytes each. */
 MGL_API void mglBufferData(const mgl_buffer *buffer, mgl_usage usage, const void *data, size_t bytes);
 /* Set a specific part of the buffer data. */
-MGL_API void mglBufferDataPartial(const mgl_buffer *buffer, const void *data, size_t offset, size_t bytes);
+MGL_API void mglBufferDataPartial(const mgl_buffer *buffer, const void *data, size_t buffer_offset, size_t bytes);
+/* Get a specific part of the buffer data. */
+MGL_API void mglGetBufferData(const mgl_buffer *buffer, size_t buffer_offset, size_t bytes, void *results);
+/* Copy data between buffers.
+   source and destination may be the same buffer, as long as the copy and paste ranges do not overlap. */
+MGL_API void mglCopyBufferData(const mgl_buffer *source, size_t source_offset, const mgl_buffer *destination, size_t destination_offset, size_t copybytes);
 /* Map or unmap the buffer contents into memory. */
 MGL_API void *mglMapBuffer(const mgl_buffer *buffer, mgl_access access);
 

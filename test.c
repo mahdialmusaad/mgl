@@ -137,7 +137,7 @@ int main(int argc, char **argv)
 
 	struct { float ubo_position[2]; } ubo = { { -1.0f, -0.9f } };
 	const float p1col[] = { 1.0f, 1.0f, 1.0f };
-	int wire = 0, cd = 0, cdf2 = 0, cdf3 = 0, invert = 0, apiver = 0;
+	int wire = 0, cd = 0, cdf2 = 0, cdf3 = 0, cdf4 = 0, invert = 0, apiver = 0;
 	const int ubo_binding_point = 0, texbinding = 0, fbtexbinding = 1;
 	size_t fid = 0, y;
 	float indcol[3];
@@ -227,7 +227,8 @@ int main(int argc, char **argv)
 
 	ds3 = mglCreateDataStore();
 	vbo3 = mglCreateBuffer(MGL_BUFFER_VERTICES);
-	mglBufferData(&vbo3, MGL_USAGE_CONSTANT, verts, sizeof verts);
+	mglBufferData(&vbo3, MGL_USAGE_DYNAMIC, NULL, sizeof verts);
+	mglCopyBufferData(&vbo, 0, &vbo3, 0, sizeof verts);
 	mglDataStoreAttribute(&ds3, &vbo3, 0, MGL_FLOAT2, 0, 0, 0);
 	ebo3 = mglCreateBuffer(MGL_BUFFER_INDICES_UINT);
 	mglBufferData(&ebo3, MGL_USAGE_CONSTANT, inds, sizeof inds);
@@ -268,6 +269,8 @@ int main(int argc, char **argv)
 		else if (glfwGetKey(window, GLFW_KEY_Z) == GLFW_RELEASE) cd = 0;
 		if (glfwGetKey(window, GLFW_KEY_X) == GLFW_PRESS && !cdf3) { invert = 1 - invert; mglSetUniform(&program4, &invertloc, 1, &invert); cdf3 = 1; }
 		else if (glfwGetKey(window, GLFW_KEY_X) == GLFW_RELEASE) cdf3 = 0;
+		if (glfwGetKey(window, GLFW_KEY_P) == GLFW_PRESS && !cdf4) { float bufpos[2]; mglGetBufferData(&ubo_buffer, 0, sizeof bufpos, bufpos); printf("Position from buffer: %f, %f\n", (double)bufpos[0], (double)bufpos[1]); cdf4 = 1; }
+		else if (glfwGetKey(window, GLFW_KEY_P) == GLFW_RELEASE) cdf4 = 0;
 		mglBindTexture(&tex, texbinding);
 		mglUseFramebuffer(&fb);
 		mglFeature(MGL_DEPTH_LEQUAL);
