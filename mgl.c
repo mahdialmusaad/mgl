@@ -2824,7 +2824,6 @@ static void mgl_internal_log(int id, const char *fmt, ...)
 	va_end(l);
 }
 
-#ifndef NDEBUG
 static void APICALL mgl_internal_debug_callback(
 	GLenum source, GLenum type,
 	GLuint id, GLenum severity,
@@ -2862,7 +2861,6 @@ static void APICALL mgl_internal_debug_callback(
 
 	mgl_internal_log((int)id, "[SEVERITY=%s][TYPE=%s] %s", sseverity, stype, message);
 }
-#endif
 
 static int mgl_internal_log2(unsigned int x)
 {
@@ -3634,22 +3632,24 @@ MGL_API int mglInit(void (*load(const char *))(void), int apiver)
 		MGL_MANUAL_LOAD(DispatchCompute);
 	}
 
+	mglDebug(mgl.user_debug);
 	return version;
 }
 MGL_API void mglDebug(void (*debug_callback)(int, const char *))
 {
 	mgl.user_debug = debug_callback;
 
-	/* TODO: recheck pfn if called before init */
-
-#ifndef NDEBUG
 	if (mgl.DebugMessageCallback) {
-		mgl.Enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
-		mgl.Enable(GL_DEBUG_OUTPUT);
-		mgl.DebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
-		mgl.DebugMessageCallback(mgl_internal_debug_callback, NULL);
+		if (debug_callback) {
+			mgl.Enable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+			mgl.Enable(GL_DEBUG_OUTPUT);
+			mgl.DebugMessageControl(GL_DONT_CARE, GL_DONT_CARE, GL_DONT_CARE, 0, NULL, GL_TRUE);
+			mgl.DebugMessageCallback(mgl_internal_debug_callback, NULL);
+		} else {
+			mgl.Disable(GL_DEBUG_OUTPUT_SYNCHRONOUS);
+			mgl.Disable(GL_DEBUG_OUTPUT);
+		}
 	}
-#endif
 }
 
 MGL_API const char *mglString(unsigned int id)
