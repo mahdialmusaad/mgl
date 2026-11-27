@@ -4280,38 +4280,35 @@ static void mgl_internal_reset_attribs(const mgl_datastore *ds, unsigned int bit
 static void mgl_internal_draw_instanced(
 	const mgl_datastore *ds, const mgl_program *program,
 	GLenum drawtype, GLenum index_type, size_t data_offset,
-	int vertex_offset, unsigned int count,
-	unsigned int instance_offset, unsigned int instance_count
+	int vertex_offset, int count,
+	unsigned int instance_offset, int instance_count
 ) {
-	GLuint uioffset = (GLuint)instance_offset;
-	GLsizei uicount = (GLsizei)instance_count;
-	GLint uvoffset = (GLint)vertex_offset;
-	GLsizei ucount = (GLsizei)count;
-
-	unsigned int completed_bitfield = 0, original_check = !program->vertexid && (uioffset || uvoffset) ? (unsigned int)mgl.max_attribs : 0, i;
-	int fallback_modify = program->vertexid != 0;
+	unsigned int completed_bitfield = 0, i = 0, use_scratch_ebo = 0;
 
 	if (mgl.DrawArraysInstancedBaseInstance) {
-		if (ds->indexsz) mgl.DrawElementsInstancedBaseVertexBaseInstance(drawtype, ucount, index_type, (const void *)data_offset, uicount, uvoffset, uioffset);
-		else mgl.DrawArraysInstancedBaseInstance(drawtype, (GLint)data_offset, ucount, uicount, uioffset);
+		if (ds->indexsz) mgl.DrawElementsInstancedBaseVertexBaseInstance(drawtype, count, index_type, (const void *)data_offset, instance_count, vertex_offset, instance_offset);
+		else mgl.DrawArraysInstancedBaseInstance(drawtype, (GLint)data_offset, count, instance_count, instance_offset);
 		return;
 	}
 
-	for (i = 0; i < original_check; ++i) {
+	if (!instance_offset) goto normal_draw;
+	use_scratch_ebo = program->vertexid;
+
+	for (i = 0; i < (unsigned int)mgl.max_attribs; ++i) {
 		const struct mgl_internal_attribute *attrib = &ds->attribs[i];
 		mgl_buffer tmpbuf;
 		ptrdiff_t noffset;
 
 		if (!attrib->astride) continue;
-		if (attrib->divisor == 0 && !uvoffset) continue;
-		if (attrib->divisor != 0 && !uioffset) continue;
+		if ((attrib->divisor == 0 && !vertex_offset) || (vertex_offset && mgl.DrawElementsInstancedBaseVertex)) continue;
+		if (attrib->divisor != 0 && !instance_offset) continue;
 
 		if (attrib->divisor == 0) noffset = (vertex_offset * attrib->astride) + (ptrdiff_t)attrib->offset;
 		else noffset = (int)(instance_offset / attrib->divisor) * attrib->astride + (ptrdiff_t)attrib->offset;
 
 		if (noffset < 0) {
 			mgl_internal_reset_attribs(ds, completed_bitfield);
-			fallback_modify = 1;
+			use_scratch_ebo = 1;
 			break;
 		}
 
@@ -4328,13 +4325,16 @@ static void mgl_internal_draw_instanced(
 		completed_bitfield |= 1 << i;
 	}
 
-	if (fallback_modify) mgl_internal_base_vertex_ebo(ds, data_offset, (size_t)ucount, ds->indexsz, uvoffset);
+	if (use_scratch_ebo) mgl_internal_base_vertex_ebo(ds, data_offset, (size_t)count, ds->indexsz, vertex_offset);
 
-	if (ds->indexsz) mgl.DrawElementsInstanced(drawtype, ucount, index_type, (const void *)data_offset, uicount);
-	else mgl.DrawArraysInstanced(drawtype, (GLint)data_offset, ucount, uicount);
+normal_draw:
+	if (ds->indexsz) {
+		if (mgl.DrawElementsInstancedBaseVertex) mgl.DrawElementsInstancedBaseVertex(drawtype, count, index_type, (const void *)data_offset, instance_count, vertex_offset);
+		else mgl.DrawElementsInstanced(drawtype, count, index_type, (const void *)data_offset, instance_count);
+	} else mgl.DrawArraysInstanced(drawtype, (GLint)data_offset, count, instance_count);
 
-	if (fallback_modify) mgl_internal_base_vertex_ebo(ds, data_offset, (size_t)ucount, ds->indexsz, -uvoffset);
-	else mgl_internal_reset_attribs(ds, completed_bitfield);
+	if (use_scratch_ebo) mgl_internal_base_vertex_ebo(ds, data_offset, (size_t)count, ds->indexsz, -vertex_offset);
+	else if (i) mgl_internal_reset_attribs(ds, completed_bitfield);
 }
 MGL_API void mglDrawInstanced(const mgl_datastore *ds, const mgl_program *program, mgl_drawtype primitive, unsigned int offset, unsigned int count, unsigned int instance_offset, unsigned int instance_count, int element_constant)
 {
@@ -4356,14 +4356,14 @@ MGL_API void mglDrawInstanced(const mgl_datastore *ds, const mgl_program *progra
 			ds, program,
 			drawtype, mgl_internal_indexsz_type(ds->indexsz),
 			(size_t)offset * ds->indexsz,
-			element_constant, count, instance_offset, instance_count
+			element_constant, (int)count, instance_offset, (int)instance_count
 		);
 	} else {
 		mgl_internal_draw_instanced(
 			ds, program,
 			drawtype, 0,
 			(size_t)offset,
-			0, count, instance_offset, instance_count
+			0, (int)count, instance_offset, (int)instance_count
 		);
 	}
 }
@@ -4402,8 +4402,8 @@ MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program
 					ds, program,
 					drawtype, index_type,
 					cmd->offset * (unsigned int)ds->indexsz,
-					cmd->element_constant, cmd->count,
-					cmd->instance_offset, cmd->instance_count
+					cmd->element_constant, (int)cmd->count,
+					cmd->instance_offset, (int)cmd->instance_count
 				);
 			}
 		} else {
@@ -4412,8 +4412,8 @@ MGL_API void mglDrawIndirect(const mgl_datastore *ds, const mgl_program *program
 				mgl_internal_draw_instanced(
 					ds, program,
 					drawtype, 0,
-					cmd->offset, 0, cmd->count,
-					cmd->instance_offset, cmd->instance_count
+					cmd->offset, 0, (int)cmd->count,
+					cmd->instance_offset, (int)cmd->instance_count
 				);
 			}
 		}
